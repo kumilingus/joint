@@ -1,7 +1,13 @@
 (function() {
 
     var graph = new joint.dia.Graph;
-    var paper = new joint.dia.Paper({ el: $('#paper-parent-expand'), width: 650, height: 250, gridSize: 1, model: graph });
+    var paper = new joint.dia.Paper({
+        el: document.getElementById('paper-parent-expand'),
+        width: 650,
+        height: 250,
+        gridSize: 1,
+        model: graph
+    });
 
     var r1 = new joint.shapes.basic.Rect({
         position: { x: 20, y: 20 },
@@ -23,64 +29,64 @@
     r1.embed(r3);
     graph.addCells([r1, r2, r3]);
 
-    graph.on('change:size', function(cell, newPosition, opt) {
-        
+    graph.on('change:size', function(cell, newSize, opt) {
+
         if (opt.skipParentHandler) return;
-        
-        if (cell.get('embeds') && cell.get('embeds').length) {
+
+        if (cell.getEmbeddedCells().length > 0) {
             // If we're manipulating a parent element, let's store
             // it's original size to a special property so that
             // we can shrink the parent element back while manipulating
             // its children.
-            cell.set('originalSize', cell.get('size'));
+            cell.set('originalSize', newSize);
         }
     });
-    
+
     graph.on('change:position', function(cell, newPosition, opt) {
 
         if (opt.skipParentHandler) return;
 
-        if (cell.get('embeds') && cell.get('embeds').length) {
+        if (cell.getEmbeddedCells().length > 0) {
             // If we're manipulating a parent element, let's store
             // it's original position to a special property so that
             // we can shrink the parent element back while manipulating
             // its children.
-            cell.set('originalPosition', cell.get('position'));
+            cell.set('originalPosition', newPosition);
         }
-        
-        var parentId = cell.get('parent');
-        if (!parentId) return;
 
-        var parent = graph.getCell(parentId);
-        var parentBbox = parent.getBBox();
+        if (!cell.isEmbedded()) return;
 
-        if (!parent.get('originalPosition')) parent.set('originalPosition', parent.get('position'));
-        if (!parent.get('originalSize')) parent.set('originalSize', parent.get('size'));
-        
+        var parent = cell.getAncestors()[0];
+        if (!parent.has('originalPosition')) {
+            parent.set('originalPosition', parent.get('position'));
+        }
+        if (!parent.has('originalSize')) {
+            parent.set('originalSize', parent.get('size'));
+        }
+
         var originalPosition = parent.get('originalPosition');
         var originalSize = parent.get('originalSize');
-        
-        var newX = originalPosition.x;
-        var newY = originalPosition.y;
-        var newCornerX = originalPosition.x + originalSize.width;
-        var newCornerY = originalPosition.y + originalSize.height;
-        
-        _.each(parent.getEmbeddedCells(), function(child) {
-
-            var childBbox = child.getBBox();
-            
-            if (childBbox.x < newX) { newX = childBbox.x; }
-            if (childBbox.y < newY) { newY = childBbox.y; }
-            if (childBbox.corner().x > newCornerX) { newCornerX = childBbox.corner().x; }
-            if (childBbox.corner().y > newCornerY) { newCornerY = childBbox.corner().y; }
+        var originalBBox = g.Rect({
+            x: originalPosition.x,
+            y: originalPosition.y,
+            width: originalSize.width,
+            height: originalSize.height
         });
+
+        var bbox = graph.getCellsBBox(parent.getEmbeddedCells()).union(originalBBox);
 
         // Note that we also pass a flag so that we know we shouldn't adjust the
         // `originalPosition` and `originalSize` in our handlers as a reaction
         // on the following `set()` call.
         parent.set({
-            position: { x: newX, y: newY },
-            size: { width: newCornerX - newX, height: newCornerY - newY }
+            position: {
+                x: bbox.x,
+                y: bbox.y
+            },
+            size: {
+                width: bbox.width,
+                height: bbox.height
+            }
         }, { skipParentHandler: true });
     });
 }());
