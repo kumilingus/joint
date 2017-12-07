@@ -899,7 +899,7 @@ joint.dia.CellView = joint.mvc.View.extend({
     processNodeAttributes: function(node, attrs) {
 
         var attrName, attrVal, def, i, n;
-        var normalAttrs, setAttrs, positionAttrs, offsetAttrs;
+        var normalAttrs, setAttrs, positionAttrs, offsetAttrs, pathAttrs;
         var relatives = [];
         // divide the attributes between normal and special
         for (attrName in attrs) {
@@ -938,6 +938,10 @@ joint.dia.CellView = joint.mvc.View.extend({
                 offsetAttrs || (offsetAttrs = {});
                 offsetAttrs[attrName] = attrVal;
             }
+            if (joint.util.isFunction(def.path)) {
+                pathAttrs || (pathAttrs = {});
+                pathAttrs[attrName] = attrVal;
+            }
         }
 
         return {
@@ -945,7 +949,8 @@ joint.dia.CellView = joint.mvc.View.extend({
             normal: normalAttrs,
             set: setAttrs,
             position: positionAttrs,
-            offset: offsetAttrs
+            offset: offsetAttrs,
+            path: pathAttrs
         };
     },
 
@@ -959,6 +964,7 @@ joint.dia.CellView = joint.mvc.View.extend({
         var setAttrs = attrs.set;
         var positionAttrs = attrs.position;
         var offsetAttrs = attrs.offset;
+        var pathAttrs = attrs.path;
 
         for (attrName in setAttrs) {
             attrVal = setAttrs[attrName];
@@ -971,6 +977,18 @@ joint.dia.CellView = joint.mvc.View.extend({
                 joint.util.assign(nodeAttrs, setResult);
             } else if (setResult !== undefined) {
                 nodeAttrs[attrName] = setResult;
+            }
+        }
+
+
+        for (attrName in pathAttrs) {
+            attrVal = pathAttrs[attrName];
+            def = this.getAttributeDefinition(attrName);
+            var pathResult = def.path.call(this, attrVal, opt.rootPath.clone(), node);
+            if (joint.util.isObject(pathResult)) {
+                joint.util.assign(nodeAttrs, pathResult);
+            } else if (pathResult !== undefined) {
+                nodeAttrs[attrName] = pathResult;
             }
         }
 
@@ -1106,7 +1124,7 @@ joint.dia.CellView = joint.mvc.View.extend({
 
         opt || (opt = {});
         opt.rootBBox || (opt.rootBBox = g.Rect());
-
+        opt.rootPath || (opt.rootPath || new g.Path('M 0 0'));
         // Cache table for query results and bounding box calculation.
         // Note that `selectorCache` needs to be invalidated for all
         // `updateAttributes` calls, as the selectors might pointing
@@ -1132,6 +1150,16 @@ joint.dia.CellView = joint.mvc.View.extend({
             processedAttrs = this.processNodeAttributes(node, nodeAttrs);
 
             if (!processedAttrs.set && !processedAttrs.position && !processedAttrs.offset) {
+
+                var pathAttrs = processedAttrs.path;
+                if (pathAttrs) {
+                    for (var attrName in pathAttrs) {
+                        var def = this.getAttributeDefinition(attrName);
+                        var pAttrs = def.path.call(this, pathAttrs[attrName], opt.rootPath.clone(), node);
+                        _.extend(processedAttrs.normal, pAttrs);
+                    }
+                }
+
                 // Set all the normal attributes right on the SVG/HTML element.
                 this.setNodeAttributes(node, processedAttrs.normal);
 

@@ -425,7 +425,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         }, this);
 
         // Only the connection path is mandatory
-        if (!this._V.connection) throw new Error('link: no connection path in the markup');
+        //if (!this._V.connection) throw new Error('link: no connection path in the markup');
 
         // partial rendering
         this.renderTools();
@@ -623,13 +623,14 @@ joint.dia.LinkView = joint.dia.CellView.extend({
 
         opt = opt || {};
 
-        if (!opt.updateConnectionOnly) {
-            // update SVG attributes defined by 'attrs/'.
-            this.updateDOMSubtreeAttributes(this.el, this.model.attr());
-        }
-
         // update the link path, label position etc.
         this.updateConnection(opt);
+
+        //if (!opt.updateConnectionOnly) {
+            // update SVG attributes defined by 'attrs/'.
+        this.updateDOMSubtreeAttributes(this.el, this.model.attr(), { rootPath: this._path });
+    //}
+
         this.updateLabelPositions();
         this.updateToolsPosition();
         this.updateArrowheadMarkers();
@@ -675,9 +676,14 @@ joint.dia.LinkView = joint.dia.CellView.extend({
 
         var pathData = this.getPathData(route);
 
-        // The markup needs to contain a `.connection`
-        this._V.connection.attr('d', pathData);
-        this._V.connectionWrap && this._V.connectionWrap.attr('d', pathData);
+        this._path = new g.Path(V.normalizePathData(pathData));
+        
+        if (this._V.connection) {
+            this._V.connection.attr('d', pathData);
+        }
+        if (this._V.connectionWrap) {
+            this._V.connectionWrap.attr('d', pathData);
+        }
 
         this._translateAndAutoOrientArrows(this._V.markerSource, this._V.markerTarget);
     },
@@ -757,8 +763,8 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         if (!labels.length) return this;
 
         var samples;
-        var connectionElement = this._V.connection.node;
-        var connectionLength = connectionElement.getTotalLength();
+        var connectionElement = this._path;
+        var connectionLength = connectionElement.length();
 
         // Firefox returns connectionLength=NaN in odd cases (for bezier curves).
         // In that case we won't update labels at all.
@@ -784,7 +790,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
                 distance = connectionLength / 2;
             }
 
-            labelCoordinates = connectionElement.getPointAtLength(distance);
+            labelCoordinates = connectionElement.pointAtLength(distance);
 
             if (joint.util.isObject(offset)) {
 
@@ -1083,10 +1089,10 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         var originalVertices = vertices.slice();
 
         // A `<path>` element used to compute the length of the path during heuristics.
-        var path = this._V.connection.node.cloneNode(false);
+        var path = this._path.clone();
 
         // Length of the original path.
-        var originalPathLength = path.getTotalLength();
+        var originalPathLength = path.length();
         // Current path length.
         var pathLength;
         // Tolerance determines the highest possible difference between the length
@@ -1101,9 +1107,11 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         while (idx--) {
 
             vertices.splice(idx, 0, vertex);
-            V(path).attr('d', this.getPathData(this.findRoute(vertices)));
+            //V(path).attr('d', this.getPathData(this.findRoute(vertices)));
 
-            pathLength = path.getTotalLength();
+            path = new g.Path(V.normalizePathData(this.getPathData(this.findRoute(vertices))));
+
+            pathLength = path.length();
 
             // Check if the path lengths changed significantly.
             if (pathLength - originalPathLength > pathLengthTolerance) {
@@ -1365,12 +1373,12 @@ joint.dia.LinkView = joint.dia.CellView.extend({
 
     getConnectionLength: function() {
 
-        return this._V.connection.node.getTotalLength();
+        return this._path.length();
     },
 
     getPointAtLength: function(length) {
 
-        return this._V.connection.node.getPointAtLength(length);
+        return this._path.pointAtLength(length);
     },
 
     // Interaction. The controller part.

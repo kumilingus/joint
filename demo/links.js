@@ -8,26 +8,26 @@ var paper = new joint.dia.Paper({
     gridSize: 1,
     perpendicularLinks: false,
     model: graph,
-    linkView: joint.dia.LinkView.extend({
-        pointerdblclick: function(evt, x, y) {
-            if (V(evt.target).hasClass('connection') || V(evt.target).hasClass('connection-wrap')) {
-                this.addVertex({ x: x, y: y });
-            }
-        },
-        options: _.extend({}, joint.dia.LinkView.prototype.options, {
-            doubleLinkTools: true,
-            linkToolsOffset: 40,
-            doubleLinkToolsOffset: 60
-        })
-    }),
-    interactive: function(cellView) {
-        if (cellView.model.get('vertexOnDblClick')) {
-            return {
-                vertexAdd: false
-            };
-        }
-        return true;
-    }
+    // linkView: joint.dia.LinkView.extend({
+    //     pointerdblclick: function(evt, x, y) {
+    //         if (V(evt.target).hasClass('connection') || V(evt.target).hasClass('connection-wrap')) {
+    //             this.addVertex({ x: x, y: y });
+    //         }
+    //     },
+    //     options: _.extend({}, joint.dia.LinkView.prototype.options, {
+    //         doubleLinkTools: true,
+    //         linkToolsOffset: 40,
+    //         doubleLinkToolsOffset: 60
+    //     })
+    // }),
+    // interactive: function(cellView) {
+    //     if (cellView.model.get('vertexOnDblClick')) {
+    //         return {
+    //             vertexAdd: false
+    //         };
+    //     }
+    //     return true;
+    // }
 });
 
 paper.on('link:pointerdown', function(evt, linkView, x, y) {
@@ -80,11 +80,168 @@ var r2 = r1.clone();
 graph.addCell(r2);
 r2.translate(300);
 
+
+joint.dia.attributes.drawPath = {
+    path: function(value, path, node) {
+
+        // var p1, p2;
+        // var d1 = ['M'];
+        // var d2 = ['Z'];
+        // for (var i = 0, n = path.pathSegments.length; i < n; i++) {
+
+        //     var t = path.pathSegments[i].tangent(0);
+        //     if (t) {
+        //         var x = t.start.clone().rotate(t.end, 90);
+        //         var t1 = t.start.clone().move(x, 5);
+        //         var t2 = t.start.clone().move(x, -5);
+
+        //         d1.push(t1.x, t1.y);
+        //         d2.push(t2.y, t2.x);
+        //     }
+
+        //     if (i === n - 1) {
+        //         var t = path.pathSegments[i].tangent(1);
+        //         if (t) {
+        //             var x = t.end.clone().rotate(t.end, 90);
+        //             var t1 = t.end.clone().move(x, 5);
+        //             var t2 = t.end.clone().move(x, -5);
+
+        //             d1.push(t1.x, t1.y);
+        //             d2.push(t2.y, t2.x);
+        //         }
+        //     }
+        // }
+
+
+        // var d = d1.concat(d2.reverse()).join(' ');
+        // //var d = ['M', p1.x, p1.y, p2.x, p2.y].join(' ');
+        // //path.serialize()
+        // node.setAttribute('d', d);
+
+        //var d = ['M', p1.x, p1.y, p2.x, p2.y].join(' ');
+        return { 'd': path.serialize() };
+        //node.setAttribute('d', path.serialize());        
+    }
+};
+
+joint.dia.attributes.atPathLength = {
+    path: function(value, path, node) {
+        var p = path.pointAtLength(value);
+        var tangent = path.tangentAtLength(value);
+        var angle;
+        if (tangent) {
+            angle = tangent.vector().vectorAngle(g.Point(1,0));
+        } else {
+            angle = 0;
+        }
+
+        return { transform: `translate(${p.x},${p.y}) rotate(${angle})` };
+    }
+};
+
+joint.dia.attributes.atPathT = {
+    path: function(value, path, node) {
+        var p = path.pointAt(value);
+        var tangent = path.tangentAt(value);
+        var angle;
+        if (tangent) {
+            angle = tangent.vector().vectorAngle(g.Point(1,0));
+        } else {
+            angle = 0;
+        }
+
+        return { transform: `translate(${p.x},${p.y}) rotate(${angle})` };
+    }
+};
+
+
 var link1 = new joint.dia.Link({
     vertexOnDblClick: true,
+    markup: '<path class="p1"/><rect/><circle class="c1"/><path class="p2"/><circle class="c2"/><text/>',
     source: { id: r1.id },
-    target: { id: r2.id }
+    target: { id: r2.id },
+    z: -1,
+    smooth: true,
+    attrs: {
+        '.p1': {
+            drawPath: true,
+            fill: 'none',
+            stroke: 'black',
+            strokeWidth: 6,
+            strokeLinejoin: 'round'
+        },
+        '.p2': {
+            //ref: { type: 'path' },
+            drawPath: true,
+            fill: 'none',
+            stroke: 'lightgray',
+            strokeWidth: 4,
+            pointerEvents: 'none',
+            strokeLinejoin: 'round',
+            targetMarker: {
+                type: 'path',
+                fill: 'lightgray',
+                stroke: 'black',
+                d: 'M 10 -3 10 -10 0 0 10 10 10 3'
+            }
+        },
+        rect: {
+            x: -10,
+            y: -20,
+            width: 20,
+            height: 40,
+            stroke: 'black',
+            fill: 'lightgray',
+            atPathLength: -30,
+            strokeWidth: 1,
+            //strokeDasharray: '36,4,36,4',
+            //strokeDashoffset: 8
+            event: 'myclick:rect'
+        },
+        text: {
+            atPathLength: -30,
+            textAnchor: 'middle',
+            y: 5,
+            text: 'Link',
+            writingMode: 'tb'
+        },
+        '.c1': {
+            r: 10,
+            stroke: 'black',
+            fill: 'lightgray',
+            atPathT: .5,
+            strokeWidth: 1,
+            //strokeDasharray: '26, 5, 26, 5',
+            //strokeDashoffset: -3
+            event: 'myclick:circle'
+        },
+        '.c2': {
+            r: 5,
+            stroke: 'black',
+            fill: 'white',
+            atPathT: .5,
+            strokeWidth: 1,
+            pointerEvents: 'none'
+        }
+
+    }
 });
+
+paper.on('myclick:circle', function(linkView, evt) {
+    evt.stopPropagation();
+    var link = linkView.model;
+    var t = link.attr('.c1/atPathT');
+    if (t > .1) {
+        t = .1;
+    } else {
+        t = .9;
+    }
+   
+    link.transition('attrs/.c1/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
+    link.transition('attrs/.c2/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
+
+});
+
 
 graph.addCell(link1);
 
