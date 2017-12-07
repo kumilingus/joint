@@ -126,7 +126,7 @@ joint.dia.attributes.drawPath = {
 
 joint.dia.attributes.atPathLength = {
     path: function(value, path, node) {
-        var p = path.pointAtLength(value);
+        var p = path.pointAtLength(value, { precision: 3 });
         var tangent = path.tangentAtLength(value);
         var angle;
         if (tangent) {
@@ -135,18 +135,29 @@ joint.dia.attributes.atPathLength = {
             angle = 0;
         }
 
-        return { transform: `translate(${p.x},${p.y}) rotate(${angle})` };
+        return { transform: V.matrixToTransformString(
+            V.createSVGMatrix().translate(p.x, p.y).rotateFromVector(
+                tangent.vector().x || 1, 
+                tangent.vector().y || 1
+            )
+        )};
+
+
+        //return { transform: V.matrixToTransformString(V.createSVGMatrix().translate(p.x, p.y).rotate(0)) }
+
+        //return { transform: `translate(${p.x},${p.y}) rotate(${angle})` };
     }
 };
 
 joint.dia.attributes.atPathT = {
     path: function(value, path, node) {
-        var p = path.pointAt(value);
+        var p, angle;
         var tangent = path.tangentAt(value);
-        var angle;
         if (tangent) {
             angle = tangent.vector().vectorAngle(g.Point(1,0));
+            p = tangent.start;
         } else {
+            p = path.pointAt(value);
             angle = 0;
         }
 
@@ -155,14 +166,42 @@ joint.dia.attributes.atPathT = {
 };
 
 
+joint.dia.attributes.title = {
+    qualify: function(title, node) {
+        return node instanceof SVGElement;
+    },
+    set: function(title, refBBox, node) {
+        var $node = $(node);
+        var cacheName = 'joint-title';
+        var cache = $node.data(cacheName);
+        if (cache === undefined || cache !== title) {
+            $node.data(cacheName, title);
+            // Generally <title> element should be the first child element of its parent.
+            var firstChild = node.firstChild;
+            if (firstChild && firstChild.tagName.toUpperCase() === 'TITLE') {
+                // Update an existing title
+                firstChild.textContent = title;
+            } else {
+                // Create a new title
+                var titleNode = document.createElementNS(node.namespaceURI, 'title');
+                titleNode.textContent = title;            
+                node.insertBefore(titleNode, firstChild);
+            }
+        }
+    }
+};
+
 var link1 = new joint.dia.Link({
     vertexOnDblClick: true,
-    markup: '<path class="p1"/><rect/><circle class="c1"/><path class="p2"/><circle class="c2"/><text/>',
+    markup: '<title/><path class="p1"/><rect/><circle class="c1"/><path class="p2"/><circle class="c2"/><text/><path class="p3"/>',
     source: { id: r1.id },
     target: { id: r2.id },
     z: -1,
     smooth: true,
     attrs: {
+        title: {
+            text: 'test'
+        },
         '.p1': {
             drawPath: true,
             fill: 'none',
@@ -185,6 +224,18 @@ var link1 = new joint.dia.Link({
                 d: 'M 10 -3 10 -10 0 0 10 10 10 3'
             }
         },
+        '.p3': {
+            atPathT: .4,
+            d: 'M 0 3 30 33',
+            fill: 'none',
+            stroke: 'black',            
+            targetMarker: {
+                type: 'path',
+                fill: 'black',
+                stroke: 'black',
+                d: 'M 10 10 0 0 10 -10'
+            }
+        },
         rect: {
             x: -10,
             y: -20,
@@ -192,14 +243,15 @@ var link1 = new joint.dia.Link({
             height: 40,
             stroke: 'black',
             fill: 'lightgray',
-            atPathLength: -30,
+            atPathLength: 30,
             strokeWidth: 1,
+            //title: 'test tittle',
             //strokeDasharray: '36,4,36,4',
             //strokeDashoffset: 8
             event: 'myclick:rect'
         },
         text: {
-            atPathLength: -30,
+            atPathLength: 30,
             textAnchor: 'middle',
             y: 5,
             text: 'Link',
