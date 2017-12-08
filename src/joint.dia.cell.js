@@ -1003,7 +1003,7 @@ joint.dia.CellView = joint.mvc.View.extend({
         // The final translation of the subelement.
         var nodeTransform = nodeAttrs.transform;
         var nodeMatrix = V.transformStringToMatrix(nodeTransform);
-        var nodePosition = g.Point(nodeMatrix.e, nodeMatrix.f);
+        var nodePosition = new g.Point(nodeMatrix.e, nodeMatrix.f);
         if (nodeTransform) {
             nodeAttrs = joint.util.omit(nodeAttrs, 'transform');
             nodeMatrix.e = nodeMatrix.f = 0;

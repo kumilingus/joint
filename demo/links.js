@@ -81,6 +81,112 @@ graph.addCell(r2);
 r2.translate(300);
 
 
+
+var LinkTool = joint.mvc.View.extend({
+
+    tagName: 'g',
+    className: 'link-tool',
+    svgElement: true,
+
+    attributes: {
+        //'pointer-events': 'none'
+    },
+    init: function() {
+
+    },
+
+    render: function() {
+
+        this.vel.empty();
+
+        var linkView = this.options.linkView;
+        var path = linkView.getPath();
+        // this.hideTools();
+
+        var tools = this._tools = [];
+
+
+        _.each(linkView.model.get('vertices'), function(vertex, index) {
+            var vertexMarker = V('<circle/>', {
+                'class': 'marker-vertex',
+                idx: index,
+                r: 10,
+                fill: 'blue',
+                stroke: 'black',
+                cx: vertex.x,
+                cy: vertex.y,
+                cursor: 'move'
+            });
+            tools.push(vertexMarker);
+        });
+
+        this.vel.append(tools);
+    },
+
+    update: function() {
+
+        this.render();
+    }
+
+});
+
+
+TargetMarker = LinkTool.extend({
+    render: function() {
+        var path = this.options.linkView.getPath();
+        var targetMarker = V('path', {
+            d: 'M -20 -20 0 0 -20 20',
+            fill: 'none',
+            stroke: 'black',
+            cursor: 'move',
+            class: 'marker-arrowhead',
+            end: 'target'
+        });
+
+
+        var targetTangent = path.tangentAt(1);
+        var targetPosition = targetTangent.start;
+        var targetVector = targetTangent.vector();
+
+        var m = V.createSVGMatrix();
+        m = m.translate(targetPosition.x, targetPosition.y);
+        if (targetVector.x && targetVector.y) {
+            m = m.rotateFromVector(targetVector.x, targetVector.y);
+        }
+
+        targetMarker.transform(m);
+
+        // targetMarker.translate(targetPosition.x, targetPosition.y);
+        // targetMarker.rotate();
+        this.vel.append(targetMarker);
+    }
+});
+
+
+var vertexMarker, targetMarker;
+paper.on('link:mouseenter', function(linkView) {
+    if (!vertexMarker) {
+        vertexMarker = new LinkTool({ linkView });
+        vertexMarker.render();
+        targetMarker = new TargetMarker({ linkView });
+        targetMarker.render();
+        //this.viewport.appendChild(linkTool.el);
+        linkView.vel.append([
+            vertexMarker.el,
+            targetMarker.el
+        ]);
+    }
+});
+
+paper.on('link:mouseleave', function() {
+    if (vertexMarker) {
+        vertexMarker.remove();
+        vertexMarker = null;
+        targetMarker.remove();
+        targetMarker = null;
+    }
+});
+
 joint.dia.attributes.drawPath = {
     path: function(value, path, node) {
 
@@ -193,14 +299,14 @@ joint.dia.attributes.title = {
 
 var link1 = new joint.dia.Link({
     vertexOnDblClick: true,
-    markup: '<title/><path class="p1"/><rect/><circle class="c1"/><path class="p2"/><circle class="c2"/><text/><path class="p3"/>',
+    markup: '<path class="p1"/><path class="connection-wrap"/><rect/><circle class="c1"/><path class="p2"/><circle class="c2"/><text/><path class="p3"/>',
     source: { id: r1.id },
     target: { id: r2.id },
     z: -1,
     smooth: true,
     attrs: {
-        title: {
-            text: 'test'
+        '.': {
+            title: 'test\ntest2'
         },
         '.p1': {
             drawPath: true,

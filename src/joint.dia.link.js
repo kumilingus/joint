@@ -1371,6 +1371,10 @@ joint.dia.LinkView = joint.dia.CellView.extend({
     // Public API
     // ----------
 
+    getPath: function() {
+        return this._path.clone();
+    },
+
     getConnectionLength: function() {
 
         return this._path.length();
