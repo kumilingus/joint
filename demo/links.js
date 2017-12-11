@@ -1,3 +1,90 @@
+var LinkTool = joint.mvc.View.extend({
+    
+        tagName: 'g',
+        className: 'link-tool',
+        svgElement: true
+    
+    });
+    
+var VertexTool = LinkTool.extend({
+    
+        render: function() {
+    
+            var linkView = this.options.view;
+            var path = linkView.getPath();
+            var tools = this._tools = [];
+    
+            _.each(linkView.model.get('vertices'), function(vertex, index) {
+                var vertexMarker = V('<circle/>', {
+                    'class': 'marker-vertex',
+                    idx: index,
+                    r: 10,
+                    fill: 'blue',
+                    stroke: 'black',
+                    cx: vertex.x,
+                    cy: vertex.y,
+                    cursor: 'move'
+                });
+                tools.push(vertexMarker);
+            });
+    
+            this.vel.empty().append(tools);
+        },
+    
+        update: function() {
+    
+            this.render();
+        }
+    
+    });
+    
+    
+    var EndTool = LinkTool.extend({
+        tagName: 'path',
+        render: function() {
+
+            var path = this.options.view.getPath();
+            var tangent = path.tangentAt(this.position);
+            var origin = tangent.start;
+            var vector = tangent.vector();
+    
+            var matrix = V.createSVGMatrix();
+
+            if (origin.x || origin.y) {
+                matrix = matrix.translate(origin.x, origin.y);
+            }
+            if (vector.x && vector.y) {
+                matrix = matrix.rotateFromVector(vector.x, vector.y);
+            }
+    
+            this.vel.transform(matrix, { absolute: true });
+        }
+    });
+    
+    var TargetTool = EndTool.extend({
+        position: 1,
+        attributes: {
+            d: 'M -20 -20 0 0 -20 20 Z',
+            fill: 'none',
+            stroke: 'black',
+            cursor: 'move',
+            class: 'marker-arrowhead',
+            target: 'target'
+        }
+    });
+
+    var SourceTool = EndTool.extend({
+        position: 0,
+        attributes: {
+            d: 'M 20 -20 0 0 20 20 Z',
+            fill: 'none',
+            stroke: 'black',
+            cursor: 'move',
+            class: 'marker-arrowhead',
+            end: 'source'
+        }
+    });
+
 var graph = new joint.dia.Graph;
 
 var paper = new joint.dia.Paper({
@@ -8,39 +95,16 @@ var paper = new joint.dia.Paper({
     gridSize: 1,
     perpendicularLinks: false,
     model: graph,
-    // linkView: joint.dia.LinkView.extend({
-    //     pointerdblclick: function(evt, x, y) {
-    //         if (V(evt.target).hasClass('connection') || V(evt.target).hasClass('connection-wrap')) {
-    //             this.addVertex({ x: x, y: y });
-    //         }
-    //     },
-    //     options: _.extend({}, joint.dia.LinkView.prototype.options, {
-    //         doubleLinkTools: true,
-    //         linkToolsOffset: 40,
-    //         doubleLinkToolsOffset: 60
-    //     })
-    // }),
-    // interactive: function(cellView) {
-    //     if (cellView.model.get('vertexOnDblClick')) {
-    //         return {
-    //             vertexAdd: false
-    //         };
-    //     }
-    //     return true;
-    // }
+    linkTools: function() {
+        return [
+            VertexTool,
+            TargetTool,
+            SourceTool
+        ]
+    }
 });
 
-paper.on('link:pointerdown', function(evt, linkView, x, y) {
-    console.log('link:pointerdown');
-});
 
-paper.on('link:disconnect', function(linkView, evt, disconnectedFromView, magnetElement, type) {
-    console.log('link:disconnect', type, disconnectedFromView, magnetElement);
-});
-
-paper.on('link:connect', function(linkView, evt, connectedToView, magnetElement, type) {
-    console.log('link:connect', type, connectedToView, magnetElement);
-});
 
 $('#perpendicularLinks').on('change', function() {
 
@@ -77,113 +141,34 @@ function title(x, y, text) {
 title(250, 70, 'Default connection');
 
 var r2 = r1.clone();
+
 graph.addCell(r2);
 r2.translate(300);
 
 
 
-var LinkTool = joint.mvc.View.extend({
-
-    tagName: 'g',
-    className: 'link-tool',
-    svgElement: true,
-
-    attributes: {
-        //'pointer-events': 'none'
-    },
-    init: function() {
-
-    },
-
-    render: function() {
-
-        this.vel.empty();
-
-        var linkView = this.options.linkView;
-        var path = linkView.getPath();
-        // this.hideTools();
-
-        var tools = this._tools = [];
-
-
-        _.each(linkView.model.get('vertices'), function(vertex, index) {
-            var vertexMarker = V('<circle/>', {
-                'class': 'marker-vertex',
-                idx: index,
-                r: 10,
-                fill: 'blue',
-                stroke: 'black',
-                cx: vertex.x,
-                cy: vertex.y,
-                cursor: 'move'
-            });
-            tools.push(vertexMarker);
-        });
-
-        this.vel.append(tools);
-    },
-
-    update: function() {
-
-        this.render();
-    }
-
-});
-
-
-TargetMarker = LinkTool.extend({
-    render: function() {
-        var path = this.options.linkView.getPath();
-        var targetMarker = V('path', {
-            d: 'M -20 -20 0 0 -20 20',
-            fill: 'none',
-            stroke: 'black',
-            cursor: 'move',
-            class: 'marker-arrowhead',
-            end: 'target'
-        });
-
-
-        var targetTangent = path.tangentAt(1);
-        var targetPosition = targetTangent.start;
-        var targetVector = targetTangent.vector();
-
-        var m = V.createSVGMatrix();
-        m = m.translate(targetPosition.x, targetPosition.y);
-        if (targetVector.x && targetVector.y) {
-            m = m.rotateFromVector(targetVector.x, targetVector.y);
-        }
-
-        targetMarker.transform(m);
-
-        // targetMarker.translate(targetPosition.x, targetPosition.y);
-        // targetMarker.rotate();
-        this.vel.append(targetMarker);
-    }
-});
-
-
-var vertexMarker, targetMarker;
+var tools;
 paper.on('link:mouseenter', function(linkView) {
-    if (!vertexMarker) {
-        vertexMarker = new LinkTool({ linkView });
-        vertexMarker.render();
-        targetMarker = new TargetMarker({ linkView });
-        targetMarker.render();
-        //this.viewport.appendChild(linkTool.el);
-        linkView.vel.append([
-            vertexMarker.el,
-            targetMarker.el
-        ]);
+    if (!tools) {
+        tools = [];
+        var fragment = document.createDocumentFragment();
+        var linkTools = this.options.linkTools.call(this, linkView);
+        for (var i = 0, n = linkTools.length; i < n; i++) {
+            var tool = new linkTools[i]({ view: linkView });
+            tool.render();
+            fragment.appendChild(tool.el);
+            tools.push(tool);
+        }
+        linkView.vel.append(fragment);
     }
 });
 
 paper.on('link:mouseleave', function() {
-    if (vertexMarker) {
-        vertexMarker.remove();
-        vertexMarker = null;
-        targetMarker.remove();
-        targetMarker = null;
+    if (tools) {
+        for (var i = 0, n = tools.length; i < n; i++) {
+            tools[i].remove();
+        }
+        tools = null;
     }
 });
 
