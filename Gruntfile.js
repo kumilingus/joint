@@ -28,6 +28,7 @@ module.exports = function(grunt) {
             'src/joint.dia.element.js',
             'src/joint.dia.link.js',
             'src/joint.dia.paper.js',
+            'src/joint.dia.tools.js',
             'src/ports.js',
             'plugins/shapes/joint.shapes.basic.js',
             'plugins/routers/*.js',
@@ -904,7 +905,7 @@ module.exports = function(grunt) {
         'test:e2e:firefox-linux',
         'test:e2e:firefox-mac'
     ]);
-    
+
     grunt.registerTask('selenium', function(action) {
 
         var done = this.async();

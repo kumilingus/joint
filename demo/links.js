@@ -1,89 +1,3 @@
-var LinkTool = joint.mvc.View.extend({
-    
-        tagName: 'g',
-        className: 'link-tool',
-        svgElement: true
-    
-    });
-    
-var VertexTool = LinkTool.extend({
-    
-        render: function() {
-    
-            var linkView = this.options.view;
-            var path = linkView.getPath();
-            var tools = this._tools = [];
-    
-            _.each(linkView.model.get('vertices'), function(vertex, index) {
-                var vertexMarker = V('<circle/>', {
-                    'class': 'marker-vertex',
-                    idx: index,
-                    r: 10,
-                    fill: 'blue',
-                    stroke: 'black',
-                    cx: vertex.x,
-                    cy: vertex.y,
-                    cursor: 'move'
-                });
-                tools.push(vertexMarker);
-            });
-    
-            this.vel.empty().append(tools);
-        },
-    
-        update: function() {
-    
-            this.render();
-        }
-    
-    });
-    
-    
-    var EndTool = LinkTool.extend({
-        tagName: 'path',
-        render: function() {
-
-            var path = this.options.view.getPath();
-            var tangent = path.tangentAt(this.position);
-            var origin = tangent.start;
-            var vector = tangent.vector();
-    
-            var matrix = V.createSVGMatrix();
-
-            if (origin.x || origin.y) {
-                matrix = matrix.translate(origin.x, origin.y);
-            }
-            if (vector.x && vector.y) {
-                matrix = matrix.rotateFromVector(vector.x, vector.y);
-            }
-    
-            this.vel.transform(matrix, { absolute: true });
-        }
-    });
-    
-    var TargetTool = EndTool.extend({
-        position: 1,
-        attributes: {
-            d: 'M -20 -20 0 0 -20 20 Z',
-            fill: 'none',
-            stroke: 'black',
-            cursor: 'move',
-            class: 'marker-arrowhead',
-            target: 'target'
-        }
-    });
-
-    var SourceTool = EndTool.extend({
-        position: 0,
-        attributes: {
-            d: 'M 20 -20 0 0 20 20 Z',
-            fill: 'none',
-            stroke: 'black',
-            cursor: 'move',
-            class: 'marker-arrowhead',
-            end: 'source'
-        }
-    });
 
 var graph = new joint.dia.Graph;
 
@@ -95,11 +9,13 @@ var paper = new joint.dia.Paper({
     gridSize: 1,
     perpendicularLinks: false,
     model: graph,
-    linkTools: function() {
+    tools: function(cellView) {
+        if (cellView.model.isElement()) return null;
         return [
-            VertexTool,
-            TargetTool,
-            SourceTool
+            joint.dia.tools.Vertices,
+            joint.dia.tools.SourceArrowhead,
+            joint.dia.tools.TargetArrowhead,
+            joint.dia.tools.Remove
         ]
     }
 });
@@ -145,31 +61,14 @@ var r2 = r1.clone();
 graph.addCell(r2);
 r2.translate(300);
 
-
-
-var tools;
 paper.on('link:mouseenter', function(linkView) {
-    if (!tools) {
-        tools = [];
-        var fragment = document.createDocumentFragment();
-        var linkTools = this.options.linkTools.call(this, linkView);
-        for (var i = 0, n = linkTools.length; i < n; i++) {
-            var tool = new linkTools[i]({ view: linkView });
-            tool.render();
-            fragment.appendChild(tool.el);
-            tools.push(tool);
-        }
-        linkView.vel.append(fragment);
+    if (linkView.model.get('showTools')) {
+        linkView.addTools();
     }
 });
 
-paper.on('link:mouseleave', function() {
-    if (tools) {
-        for (var i = 0, n = tools.length; i < n; i++) {
-            tools[i].remove();
-        }
-        tools = null;
-    }
+paper.on('link:mouseleave', function(linkView, evt) {
+    linkView.removeTools();
 });
 
 joint.dia.attributes.drawPath = {
@@ -283,12 +182,14 @@ joint.dia.attributes.title = {
 };
 
 var link1 = new joint.dia.Link({
+    showTools: true,
     vertexOnDblClick: true,
     markup: '<path class="p1"/><path class="connection-wrap"/><rect/><circle class="c1"/><path class="p2"/><circle class="c2"/><text/><path class="p3"/>',
     source: { id: r1.id },
     target: { id: r2.id },
     z: -1,
     smooth: true,
+    vertices: [{ x: 500, y: 100 }],
     attrs: {
         '.': {
             title: 'test\ntest2'
@@ -402,15 +303,27 @@ graph.addCell(r4);
 r4.translate(300);
 
 var link2 = new joint.dia.Link({
-
+    markup: '<path/><path/>',
     source: { id: r3.id },
     target: { id: r4.id },
     attrs: {
-        '.marker-source': {
-            d: 'M 10 0 L 0 5 L 10 10 z'
+        'path:nth-child(2)': {
+            drawPath: true,
+            fill: 'none',
+            strokeWidth: 8,
+            stroke: {
+                type: 'linearGradient',
+                stops: [
+                    { offset: '0%', color: 'orange' },
+                    { offset: '100%', color: 'lightgray' }
+                ]
+            },
         },
-        '.marker-target': {
-            d: 'M 10 0 L 0 5 L 10 10 z'
+        'path:first': {
+            drawPath: true,
+            strokeWidth: 10,
+            stroke: 'black',
+            fill: 'none'
         }
     }
 });

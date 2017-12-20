@@ -145,7 +145,6 @@ joint.dia.Paper = joint.mvc.View.extend({
     },
 
     events: {
-
         'mousedown': 'pointerdown',
         'dblclick': 'mousedblclick',
         'click': 'mouseclick',
@@ -164,11 +163,15 @@ joint.dia.Paper = joint.mvc.View.extend({
         'touchstart .joint-cell [event]': 'cellEvent'
     },
 
+    documentEvents: {
+        mouseup: 'pointerup',
+        touchend: 'pointerup',
+        touchcanel: 'pointerup'
+    },
+
     _highlights: {},
 
     init: function() {
-
-        joint.util.bindAll(this, 'pointerup');
 
         var model = this.model = this.options.model || new joint.dia.Graph;
 
@@ -191,8 +194,6 @@ joint.dia.Paper = joint.mvc.View.extend({
         this._mousemoved = 0;
         // Hash of all cell views.
         this._views = {};
-        // Reference to the paper owner document
-        this.$document = $(this.el.ownerDocument);
     },
 
     cloneOptions: function() {
@@ -210,15 +211,6 @@ joint.dia.Paper = joint.mvc.View.extend({
             options.highlighting,
             this.constructor.prototype.options.highlighting
         );
-    },
-
-    bindDocumentEvents: function() {
-        var eventNS = this.getEventNamespace();
-        this.$document.on('mouseup' + eventNS + ' touchend' + eventNS, this.pointerup);
-    },
-
-    unbindDocumentEvents: function() {
-        this.$document.off(this.getEventNamespace());
     },
 
     render: function() {
@@ -322,7 +314,7 @@ joint.dia.Paper = joint.mvc.View.extend({
 
         //clean up all DOM elements/views to prevent memory leaks
         this.removeViews();
-        this.unbindDocumentEvents();
+        this.undelegateDocumentEvents();
     },
 
     setDimensions: function(width, height) {
@@ -583,7 +575,8 @@ joint.dia.Paper = joint.mvc.View.extend({
 
         return new ViewClass({
             model: cell,
-            interactive: this.options.interactive
+            interactive: this.options.interactive,
+            tools: this.options.tools
         });
     },
 
@@ -1256,7 +1249,7 @@ joint.dia.Paper = joint.mvc.View.extend({
 
     pointerdown: function(evt) {
 
-        this.bindDocumentEvents();
+        this.delegateDocumentEvents();
 
         evt = joint.util.normalizeEvent(evt);
 
@@ -1305,8 +1298,8 @@ joint.dia.Paper = joint.mvc.View.extend({
     },
 
     pointerup: function(evt) {
-
-        this.unbindDocumentEvents();
+        console.log('pu', evt.target);
+        this.undelegateDocumentEvents();
 
         evt = joint.util.normalizeEvent(evt);
 

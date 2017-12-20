@@ -77,7 +77,7 @@ joint.dia.Link = joint.dia.Cell.extend({
     // A convenient way to set labels. Currently set values will be mixined with `value` if used as a setter.
     label: function(idx, value, opt) {
 
-        idx = idx || 0;
+        idx || (idx = 0);
 
         // Is it a getter?
         if (arguments.length <= 1) {
@@ -85,6 +85,27 @@ joint.dia.Link = joint.dia.Cell.extend({
         }
 
         return this.prop(['labels', idx], value, opt);
+    },
+
+    vertex: function(idx, value, opt) {
+        
+        idx || (idx = 0);
+        
+        // Is it a getter?
+        if (arguments.length <= 1) {
+            return this.prop(['vertices', idx]);
+        }
+
+        return this.prop(['vertices', idx], value, opt);
+    },
+
+    removeVertex: function(idx, opt) {
+        idx || (idx = 0);
+        var vertices = this.get('vertices');
+        if (!Array.isArray(vertices) || vertices.length <= idx) return this;
+        vertices = vertices.slice();
+        vertices.splice(idx, 1);
+        return this.set('vertices', vertices, opt);
     },
 
     translate: function(tx, ty, opt) {
@@ -631,10 +652,13 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         this.updateDOMSubtreeAttributes(this.el, this.model.attr(), { rootPath: this._path });
     //}
 
+        this._translateAndAutoOrientArrows(this._V.markerSource, this._V.markerTarget);
+    
         this.updateLabelPositions();
         this.updateToolsPosition();
         this.updateArrowheadMarkers();
 
+        this.updateTools();
         // Local perpendicular flag (as opposed to one defined on paper).
         // Could be enabled inside a connector/router. It's valid only
         // during the update execution.
@@ -684,8 +708,6 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         if (this._V.connectionWrap) {
             this._V.connectionWrap.attr('d', pathData);
         }
-
-        this._translateAndAutoOrientArrows(this._V.markerSource, this._V.markerTarget);
     },
 
     _findConnectionPoints: function(vertices) {
@@ -1057,19 +1079,6 @@ joint.dia.LinkView = joint.dia.CellView.extend({
                 this.paper.viewport
             );
         }
-    },
-
-    removeVertex: function(idx) {
-
-        var vertices = joint.util.assign([], this.model.get('vertices'));
-
-        if (vertices && vertices.length) {
-
-            vertices.splice(idx, 1);
-            this.model.set('vertices', vertices, { ui: true });
-        }
-
-        return this;
     },
 
     // This method ads a new vertex to the `vertices` array of `.connection`. This method
@@ -1564,7 +1573,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
             case 'marker-vertex-remove':
             case 'marker-vertex-remove-area':
                 if (this.can('vertexRemove')) {
-                    this.removeVertex(evt.target.getAttribute('idx'));
+                    this.model.removeVertex(evt.target.getAttribute('idx'), { ui: true });
                 }
                 break;
 
@@ -1886,6 +1895,11 @@ joint.dia.LinkView = joint.dia.CellView.extend({
 
         this.notify('link:pointerup', evt, x, y);
         joint.dia.CellView.prototype.pointerup.apply(this, arguments);
+
+        // mouseleave event is not triggered due to changing pointer-events to `none`.
+        if (!this.vel.contains(evt.target)) {
+            this.mouseleave(evt);
+        }
     },
 
     mouseenter: function(evt) {

@@ -1252,6 +1252,52 @@ joint.dia.CellView = joint.mvc.View.extend({
         processedAttrs.normal = roProcessedAttrs.normal;
     },
 
+    onRemove: function() {
+        this.removeTools();
+    },
+    // Tools
+    // -----
+
+    _tools: null,
+
+    addTools: function(toolClasses) {
+        this.removeTools();        
+        toolClasses || (toolClasses = this.options.tools.call(this.paper, this));
+        if (!Array.isArray(toolClasses)) return this;
+        var tools = this._tools = [];
+        var fragment = document.createDocumentFragment();
+        for (var i = 0, n = toolClasses.length; i < n; i++) {
+            var ToolClass = toolClasses[i];
+            if (!joint.dia.Tool.prototype.isPrototypeOf(ToolClass.prototype)) continue;
+            var tool = new ToolClass({ relatedView: this });
+            tool.render();
+            fragment.appendChild(tool.el);
+            tools.push(tool);
+        }
+        this.vel.append(fragment);
+        return this;
+    },
+
+    updateTools: function() {
+        var tools = this._tools;
+        if (tools) {
+            for (var i = 0, n = tools.length; i < n; i++) {
+                tools[i].update();
+            }
+        }
+        return this;
+    },
+
+    removeTools: function() {
+        var tools = this._tools;
+        if (tools) {
+            for (var i = 0, n = tools.length; i < n; i++) {
+                tools[i].remove();
+            }
+            this._tools = null;
+        }
+        return this;
+    },
     // Interaction. The controller part.
     // ---------------------------------
 

@@ -150,6 +150,23 @@ joint.mvc.View = Backbone.View.extend({
     getEventNamespace: function() {
         // Returns a per-session unique namespace
         return '.joint-event-ns-' + this.cid;
+    },
+
+    delegateDocumentEvents: function(events) {
+        events || (events = joint.util.result(this, 'documentEvents'));
+        if (!events) return this;
+        var eventNS = this.getEventNamespace();
+        for (var eventName in events) {
+            var method = events[eventName];
+            if (typeof method !== 'function') method = this[method];
+            if (!method) continue;
+            console.log(eventName, method);
+            $(document).on(eventName + eventNS, method.bind(this));
+        }
+    },
+
+    undelegateDocumentEvents: function() {
+        $(document).off(this.getEventNamespace());
     }
 
 }, {
