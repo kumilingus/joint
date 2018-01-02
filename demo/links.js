@@ -11,16 +11,26 @@ var paper = new joint.dia.Paper({
     model: graph,
     tools: function(cellView) {
         if (cellView.model.isElement()) return null;
+        var tools = joint.dia.tools;
         return [
-            joint.dia.tools.Vertices,
-            joint.dia.tools.SourceArrowhead,
-            joint.dia.tools.TargetArrowhead,
-            joint.dia.tools.Remove
+            // tools.Vertices,
+            // tools.SourceArrowhead,
+            // tools.TargetArrowhead,
+            // tools.Remove,
+            // tools.Segments
+            tools.Vectors,
+            //tools.TargetArrowhead
         ]
-    }
+    },
+    // linkConnectionPoint: function(linkView, elementView, magnet, ref, end) {
+    //     return elementView.model.getBBox().rightMiddle();
+    // },
+    interactive: function() {
+        return { vertexAdd: false }
+    },
+    // anchor: joint.anchors.center,
+    // connectionPoint: joint.connectionPoints.boundary
 });
-
-
 
 $('#perpendicularLinks').on('change', function() {
 
@@ -61,14 +71,28 @@ var r2 = r1.clone();
 graph.addCell(r2);
 r2.translate(300);
 
-paper.on('link:mouseenter', function(linkView) {
-    if (linkView.model.get('showTools')) {
-        linkView.addTools();
-    }
-});
+// paper.on('link:mouseenter', function(linkView) {
+//     console.log('link-enter');
+//     if (linkView.model.get('showTools')) {
+//         if (!linkView._tools) linkView.addTools();
+//     }
+// });
 
-paper.on('link:mouseleave', function(linkView, evt) {
-    linkView.removeTools();
+// paper.on('link:mouseleave', function(linkView, evt) {
+//     console.log('link-leave');
+//     linkView.removeTools();
+// });
+var lv;
+paper.on('link:pointerdown', function(linkView) {
+    if (linkView.model.get('showTools')) {
+        if (lv) lv.removeTools();
+        linkView.addTools();
+        lv = linkView;
+    }
+
+});
+paper.on('blank:pointerdown', function(linkView) {
+    if (lv) lv.removeTools();
 });
 
 joint.dia.attributes.drawPath = {
@@ -110,7 +134,7 @@ joint.dia.attributes.drawPath = {
 
         //var d = ['M', p1.x, p1.y, p2.x, p2.y].join(' ');
         return { 'd': path.serialize() };
-        //node.setAttribute('d', path.serialize());        
+        //node.setAttribute('d', path.serialize());
     }
 };
 
@@ -127,7 +151,7 @@ joint.dia.attributes.atPathLength = {
 
         return { transform: V.matrixToTransformString(
             V.createSVGMatrix().translate(p.x, p.y).rotateFromVector(
-                tangent.vector().x || 1, 
+                tangent.vector().x || 1,
                 tangent.vector().y || 1
             )
         )};
@@ -174,7 +198,7 @@ joint.dia.attributes.title = {
             } else {
                 // Create a new title
                 var titleNode = document.createElementNS(node.namespaceURI, 'title');
-                titleNode.textContent = title;            
+                titleNode.textContent = title;
                 node.insertBefore(titleNode, firstChild);
             }
         }
@@ -184,11 +208,30 @@ joint.dia.attributes.title = {
 var link1 = new joint.dia.Link({
     showTools: true,
     vertexOnDblClick: true,
-    markup: '<path class="p1"/><path class="connection-wrap"/><rect/><circle class="c1"/><path class="p2"/><circle class="c2"/><text/><path class="p3"/>',
-    source: { id: r1.id },
-    target: { id: r2.id },
-    z: -1,
-    smooth: true,
+//    markup: '<path class="p1"/><path class="connection-wrap"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
+    markup: '<path class="p1"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
+    source: {
+        id: r1.id,
+        outVector: { x: 100, y: 0 },
+        //anchor: { name: 'left', args: { dx: -10 }},
+        //connectionPoint: { name: 'perpendicular', args: { padding: 4 }}
+        //connectionPoint: { name: 'anchor' }
+        anchor: { name: 'midSide' },
+        connectionPoint: { name: 'anchor' }
+    },
+    target: {
+        id: r2.id,
+        inVector: { x: -100, y: 0 },
+        //anchor: { name: 'center', args2: { dx: 10, dy: 10 }},
+        //connectionPoint: { name: 'perpendicular', args: { padding: 4 }}
+        anchor: { name: 'midSide', args: { padding: 0 }},
+        connectionPoint: { name: 'anchor' }
+    },
+    z: 10,
+    connector: { name: 'vectorDriven' },
+    //router: { name: 'orthogonal' },
+    //router: { name: 'trim' },
+    //connector: { name: 'trim' },
     vertices: [{ x: 500, y: 100 }],
     attrs: {
         '.': {
@@ -213,22 +256,22 @@ var link1 = new joint.dia.Link({
                 type: 'path',
                 fill: 'lightgray',
                 stroke: 'black',
-                d: 'M 10 -3 10 -10 0 0 10 10 10 3'
+                d: 'M 10 -3 10 -10 -2 0 10 10 10 3'
             }
         },
         '.p3': {
             atPathT: .4,
             d: 'M 0 3 30 33',
             fill: 'none',
-            stroke: 'black',            
+            stroke: 'black',
             targetMarker: {
                 type: 'path',
                 fill: 'black',
                 stroke: 'black',
-                d: 'M 10 10 0 0 10 -10'
+                d: 'M 10 10 -2 0 10 -10'
             }
         },
-        rect: {
+        '.sign': {
             x: -10,
             y: -20,
             width: 20,
@@ -242,7 +285,7 @@ var link1 = new joint.dia.Link({
             //strokeDashoffset: 8
             event: 'myclick:rect'
         },
-        text: {
+        '.sign-text': {
             atPathLength: 30,
             textAnchor: 'middle',
             y: 5,
@@ -280,7 +323,7 @@ paper.on('myclick:circle', function(linkView, evt) {
     } else {
         t = .9;
     }
-   
+
     link.transition('attrs/.c1/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
     link.transition('attrs/.c2/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
 

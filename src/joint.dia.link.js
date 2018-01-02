@@ -88,15 +88,25 @@ joint.dia.Link = joint.dia.Cell.extend({
     },
 
     vertex: function(idx, value, opt) {
-        
+
         idx || (idx = 0);
-        
+
         // Is it a getter?
         if (arguments.length <= 1) {
             return this.prop(['vertices', idx]);
         }
 
         return this.prop(['vertices', idx], value, opt);
+    },
+
+    addVertex: function(idx, value, opt) {
+        idx || (idx = 0);
+        var vertices = this.get('vertices');
+        if (!Array.isArray(vertices)) return this;
+        idx = Math.max(0, Math.min(idx, vertices.length));
+        vertices = vertices.slice();
+        vertices.splice(idx, 0, value);
+        return this.set('vertices', vertices, opt);
     },
 
     removeVertex: function(idx, opt) {
@@ -106,6 +116,12 @@ joint.dia.Link = joint.dia.Cell.extend({
         vertices = vertices.slice();
         vertices.splice(idx, 1);
         return this.set('vertices', vertices, opt);
+    },
+
+    vertices: function() {
+        var vertices = this.get('vertices');
+        if (!Array.isArray(vertices)) return [];
+        return vertices.map(g.Point);
     },
 
     translate: function(tx, ty, opt) {
@@ -653,12 +669,12 @@ joint.dia.LinkView = joint.dia.CellView.extend({
     //}
 
         this._translateAndAutoOrientArrows(this._V.markerSource, this._V.markerTarget);
-    
+
         this.updateLabelPositions();
         this.updateToolsPosition();
         this.updateArrowheadMarkers();
 
-        this.updateTools();
+        this.updateTools(opt);
         // Local perpendicular flag (as opposed to one defined on paper).
         // Could be enabled inside a connector/router. It's valid only
         // during the update execution.
@@ -701,7 +717,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         var pathData = this.getPathData(route);
 
         this._path = new g.Path(V.normalizePathData(pathData));
-        
+
         if (this._V.connection) {
             this._V.connection.attr('d', pathData);
         }
@@ -714,19 +730,54 @@ joint.dia.LinkView = joint.dia.CellView.extend({
 
         // cache source and target points
         var sourcePoint, targetPoint, sourceMarkerPoint, targetMarkerPoint;
+
         var verticesArr = joint.util.toArray(vertices);
-
         var firstVertex = verticesArr[0];
-
-        sourcePoint = this.getConnectionPoint(
-            'source', this.model.get('source'), firstVertex || this.model.get('target')
-        ).round();
-
         var lastVertex = verticesArr[verticesArr.length - 1];
 
-        targetPoint = this.getConnectionPoint(
-            'target', this.model.get('target'), lastVertex || sourcePoint
-        ).round();
+        var model = this.model;
+        var sourceDef = model.get('source');
+        var targetDef = model.get('target');
+        var sourceBBox = this.sourceBBox;
+        var targetBBox = this.targetBBox;
+
+        var paperOptions = this.paper.options;
+        var sourceAnchor;
+        if (false && firstVertex && sourceBBox.containsPoint(firstVertex)) {
+            sourceAnchor = new g.Point(firstVertex);
+            firstVertex = verticesArr[1];
+            vertices.splice(0,1);
+        } else {
+            var sourceAnchorRef = (firstVertex) ? new g.Rect(firstVertex) : targetBBox;
+            var sourceAnchorDef = sourceDef.anchor || paperOptions.defaultSourceAnchor;
+            sourceAnchor = this.getAnchor(sourceAnchorDef, sourceBBox, sourceAnchorRef);
+        }
+
+        var targetAnchor;
+        if (false && lastVertex && targetBBox.containsPoint(lastVertex)) {
+            targetAnchor = new g.Point(lastVertex);
+            lastVertex = verticesArr[verticesArr.length - 2];
+            vertices.splice(-1,1);
+        } else {
+            var targetAnchorRef = new g.Rect(lastVertex || sourceAnchor);
+            var targetAnchorDef = targetDef.anchor || paperOptions.defaultTargetAnchor;
+            targetAnchor = this.getAnchor(targetAnchorDef, targetBBox, targetAnchorRef);
+        }
+
+        var sourceConnectionPointDef = sourceDef.connectionPoint || paperOptions.defaultSourceConnectionPoint;
+        var sourcePointRef = firstVertex || targetAnchor;
+        var sourcePoint = this.getConnectionPoint(sourceConnectionPointDef, sourceAnchor, sourcePointRef, sourceBBox);
+        var targetConnectionPointDef = targetDef.connectionPoint || paperOptions.defaultTargetConnectionPoint;
+        var targetPointRef = lastVertex || sourceAnchor;
+        var targetPoint = this.getConnectionPoint(targetConnectionPointDef, targetAnchor, targetPointRef, targetBBox);
+
+        // sourcePoint = this.getConnectionPoint(
+        //     'source', this.model.get('source'), firstVertex || this.model.get('target')
+        // ).round();
+
+        // targetPoint = this.getConnectionPoint(
+        //     'target', this.model.get('target'), lastVertex || sourcePoint
+        // ).round();
 
         // Move the source point by the width of the marker taking into account
         // its scale around x-axis. Note that scale is the only transform that
@@ -762,6 +813,28 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         // make connection points public
         this.sourcePoint = sourcePoint;
         this.targetPoint = targetPoint;
+    },
+
+    getAnchor: function(anchorDef, bbox, ref) {
+        var anchor;
+        if (anchorDef) {
+            var anchorName = anchorDef.name;
+            var anchorFn = joint.anchors[anchorName];
+            if (typeof anchorFn !== 'function') throw new Error('Unknown anchor: ' + anchorName);
+            anchor = anchorFn.call(this, bbox.clone(), ref, anchorDef.args || {});
+        }
+        return anchor || bbox.center();
+    },
+
+    getConnectionPoint: function(connectionPointDef, anchor, refPoint, bbox) {
+        var connectionPoint;
+        if (connectionPointDef) {
+            var connectionPointName = connectionPointDef.name;
+            var connectionPointFn = joint.connectionPoints[connectionPointName];
+            if (typeof connectionPointFn !== 'function') throw new Error('Unknown connection point: ' + connectionPointName);
+            connectionPoint = connectionPointFn.call(this, anchor, new g.Point(refPoint), bbox, connectionPointDef.args || {});
+        }
+        return connectionPoint || anchor;
     },
 
     _translateConnectionPoints: function(tx, ty) {
@@ -1084,7 +1157,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
     // This method ads a new vertex to the `vertices` array of `.connection`. This method
     // uses a heuristic to find the index at which the new `vertex` should be placed at assuming
     // the new vertex is somewhere on the path.
-    addVertex: function(vertex) {
+    addVertex: function(vertex, opt) {
 
         // As it is very hard to find a correct index of the newly created vertex,
         // a little heuristics is taking place here.
@@ -1141,9 +1214,30 @@ joint.dia.LinkView = joint.dia.CellView.extend({
             vertices.splice(idx, 0, vertex);
         }
 
-        this.model.set('vertices', vertices, { ui: true });
+        this.model.set('vertices', vertices, opt);
 
         return idx;
+    },
+
+    removeRedundantLinearVertices: function(opt) {
+        var link = this.model;
+        var vertices = link.vertices();
+        var conciseVertices = [];
+        var n = vertices.length;
+        var m = 0;
+        for (var i = 0; i < n; i++) {
+            var current = vertices[i].clone().round();
+            var prev = new g.Point(conciseVertices[m - 1] || this.sourcePoint);
+            if (prev.round().equals(current)) continue;
+            var next = g.Point(vertices[i + 1] || this.targetPoint);
+            var line = new g.Line(prev, next.round());
+            if (line.pointOffset(current) === 0) continue;
+            conciseVertices.push(vertices[i].toJSON());
+            m++;
+        }
+        if (n === m) return 0;
+        link.set('vertices', conciseVertices, opt);
+        return (n - m);
     },
 
     // Send a token (an SVG element, usually a circle) along the connection path.
@@ -1267,7 +1361,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
     // If `selectorOrPoint` is a point, then we're done and that point is the start of the connection.
     // If the `selectorOrPoint` is an element however, we need to know a reference point (or element)
     // that the link leads to in order to determine the start of the connection on the original element.
-    getConnectionPoint: function(end, selectorOrPoint, referenceSelectorOrPoint) {
+    getConnectionPoint2: function(end, selectorOrPoint, referenceSelectorOrPoint) {
 
         var spot;
 
@@ -1280,7 +1374,8 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         if (!selectorOrPoint.id) {
 
             // If the source is a point, we don't need a reference point to find the sticky point of connection.
-            spot = g.Point(selectorOrPoint);
+            //spot = g.Point(selectorOrPoint);
+            return new g.Point(selectorOrPoint);
 
         } else {
 
@@ -1291,6 +1386,18 @@ joint.dia.LinkView = joint.dia.CellView.extend({
             // `_sourceBbox` (`_targetBbox`) comes from `_sourceBboxUpdate` (`_sourceBboxUpdate`)
             // method, it exists since first render and are automatically updated
             var spotBBox = g.Rect(end === 'source' ? this.sourceBBox : this.targetBBox);
+
+            var anchor;
+            var anchorDef = selectorOrPoint.anchor;
+            if (anchorDef) {
+                var anchorName = anchorDef.name;
+                var anchorFn = joint.anchors[anchorName];
+                if (typeof anchorFn !== 'function') throw new Error('Unknown anchor: ' + anchorName);
+                anchor = anchorFn.call(this, spotBBox.clone(), anchorDef.args || {});
+                //return anchor;
+            } else {
+                anchor = spotBBox.center();
+            }
 
             var reference;
 
@@ -1307,8 +1414,30 @@ joint.dia.LinkView = joint.dia.CellView.extend({
                 // in order to follow paper viewport transformations (scale/rotate).
                 var referenceBBox = g.Rect(end === 'source' ? this.targetBBox : this.sourceBBox);
 
-                reference = referenceBBox.intersectionWithLineFromCenterToPoint(spotBBox.center());
-                reference = reference || referenceBBox.center();
+                var reference;
+                var referenceDef = referenceSelectorOrPoint.anchor;
+                if (anchorDef) {
+                    var referenceName = referenceDef.name;
+                    var referenceFn = joint.anchors[referenceName];
+                    if (typeof referenceFn !== 'function') throw new Error('Unknown anchor: ' + referenceName);
+                    reference = referenceFn.call(this, referenceBBox.clone(), referenceDef.args || {});
+                    //return reference;
+                } else {
+                    reference = referenceBBox.center();
+                }
+
+                //reference = referenceBBox.intersectionWithLineFromCenterToPoint(spotBBox.center());
+                //reference = reference || referenceBBox.center();
+
+            }
+
+            var connectionPoint;
+            var connectionPointDef = selectorOrPoint.connectionPoint;
+            if (connectionPointDef) {
+                var connectionPointName = connectionPointDef.name;
+                var connectionPointFn = joint.connectionPoints[connectionPointName];
+                if (typeof connectionPointFn !== 'function') throw new Error('Unknown connection point: ' + connectionPointName);
+                return connectionPointFn.call(this, anchor, reference, spotBBox, connectionPointDef.args || {});
             }
 
             var paperOptions = this.paper.options;
@@ -1600,7 +1729,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
 
                     // Store the index at which the new vertex has just been placed.
                     // We'll be update the very same vertex position in `pointermove()`.
-                    this._vertexIdx = this.addVertex({ x: x, y: y });
+                    this._vertexIdx = this.addVertex({ x: x, y: y }, { ui: true });
                     this._action = 'vertex-move';
                 }
         }

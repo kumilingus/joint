@@ -137,6 +137,7 @@ joint.mvc.View = Backbone.View.extend({
 
         joint.mvc.views[this.cid] = null;
 
+        this.undelegateDocumentEvents();
         Backbone.View.prototype.remove.apply(this, arguments);
 
         return this;
@@ -160,7 +161,6 @@ joint.mvc.View = Backbone.View.extend({
             var method = events[eventName];
             if (typeof method !== 'function') method = this[method];
             if (!method) continue;
-            console.log(eventName, method);
             $(document).on(eventName + eventNS, method.bind(this));
         }
     },

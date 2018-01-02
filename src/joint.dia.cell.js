@@ -1261,7 +1261,7 @@ joint.dia.CellView = joint.mvc.View.extend({
     _tools: null,
 
     addTools: function(toolClasses) {
-        this.removeTools();        
+        this.removeTools();
         toolClasses || (toolClasses = this.options.tools.call(this.paper, this));
         if (!Array.isArray(toolClasses)) return this;
         var tools = this._tools = [];
@@ -1278,11 +1278,15 @@ joint.dia.CellView = joint.mvc.View.extend({
         return this;
     },
 
-    updateTools: function() {
+    updateTools: function(opt) {
+        opt || (opt = {});
         var tools = this._tools;
         if (tools) {
             for (var i = 0, n = tools.length; i < n; i++) {
-                tools[i].update();
+                var tool = tools[i];
+                if (opt.tool !== tool.cid) {
+                    tools[i].update();
+                }
             }
         }
         return this;

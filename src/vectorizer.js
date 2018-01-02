@@ -242,7 +242,7 @@ V = Vectorizer = (function() {
 
         return V.transformRect(box, matrix);
     };
-    
+
     // Returns an SVGRect that contains coordinates and dimensions of the real bounding box,
     // i.e. after transformations are applied.
     // Fixes a browser implementation bug that returns incorrect bounding boxes for groups of svg elements.
@@ -301,7 +301,7 @@ V = Vectorizer = (function() {
 
             var children = this.children();
             var n = children.length;
-            
+
             if (n === 0) {
                 return this.getBBox({ target: options.target, recursive: false });
             }
@@ -717,12 +717,12 @@ V = Vectorizer = (function() {
     V.prototype.children = function() {
 
         var children = this.node.childNodes;
-        
+
         var outputArray = [];
         for (var i = 0; i < children.length; i++) {
             var currentChild = children[i];
             if (currentChild.nodeType === 1) {
-                outputArray.push(V(children[i])); 
+                outputArray.push(V(children[i]));
             }
         }
         return outputArray;

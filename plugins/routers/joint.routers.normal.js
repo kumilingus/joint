@@ -2,5 +2,5 @@
 // Returns the arguments that are passed to it, unchanged.
 joint.routers.normal = function(vertices, opt, linkView) {
 
-    return vertices;
+    return joint.util.toArray(vertices);
 };

@@ -33,6 +33,12 @@ var joint = {
     // `joint.highlighters` namespace.
     highlighters: {},
 
+    // `joint.anchors` namespace
+    anchors: {},
+
+    // `joint.connectionPoints` namespace
+    connectionPoints: {},
+
     // `joint.routers` namespace.
     routers: {},
 
