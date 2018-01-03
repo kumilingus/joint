@@ -153,15 +153,16 @@ joint.mvc.View = Backbone.View.extend({
         return '.joint-event-ns-' + this.cid;
     },
 
-    delegateDocumentEvents: function(events) {
+    delegateDocumentEvents: function(events, data) {
         events || (events = joint.util.result(this, 'documentEvents'));
+        data || (data = {});
         if (!events) return this;
         var eventNS = this.getEventNamespace();
         for (var eventName in events) {
             var method = events[eventName];
             if (typeof method !== 'function') method = this[method];
             if (!method) continue;
-            $(document).on(eventName + eventNS, method.bind(this));
+            $(document).on(eventName + eventNS, data, method.bind(this));
         }
     },
 

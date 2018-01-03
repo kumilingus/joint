@@ -13,12 +13,13 @@ var paper = new joint.dia.Paper({
         if (cellView.model.isElement()) return null;
         var tools = joint.dia.tools;
         return [
-            // tools.Vertices,
-            // tools.SourceArrowhead,
-            // tools.TargetArrowhead,
+            tools.Vertices,
+            tools.SourceArrowhead,
+            tools.TargetArrowhead,
             // tools.Remove,
-            // tools.Segments
-            tools.Vectors,
+            tools.Segments,
+            tools.Boundary
+            // tools.Vectors,
             //tools.TargetArrowhead
         ]
     },
@@ -71,25 +72,28 @@ var r2 = r1.clone();
 graph.addCell(r2);
 r2.translate(300);
 
-// paper.on('link:mouseenter', function(linkView) {
-//     console.log('link-enter');
-//     if (linkView.model.get('showTools')) {
-//         if (!linkView._tools) linkView.addTools();
-//     }
-// });
+paper.on('link:mouseenter', function(linkView) {
+    console.log('link-enter');
+    if (linkView.model.get('showTools') === 1) {
+        if (!linkView._tools) linkView.addTools();
+    }
+});
 
-// paper.on('link:mouseleave', function(linkView, evt) {
-//     console.log('link-leave');
-//     linkView.removeTools();
-// });
+paper.on('link:mouseleave', function(linkView, evt) {
+    console.log('link-leave');
+    if (linkView.model.get('showTools') === 1) {
+        linkView.removeTools();
+    }
+});
 var lv;
 paper.on('link:pointerdown', function(linkView) {
-    if (linkView.model.get('showTools')) {
+    if (linkView.model.get('showTools') === 2) {
         if (lv) lv.removeTools();
-        linkView.addTools();
+        linkView.addTools([
+            joint.dia.tools.Vectors
+        ]);
         lv = linkView;
     }
-
 });
 paper.on('blank:pointerdown', function(linkView) {
     if (lv) lv.removeTools();
@@ -206,7 +210,7 @@ joint.dia.attributes.title = {
 };
 
 var link1 = new joint.dia.Link({
-    showTools: true,
+    showTools: 1,
     vertexOnDblClick: true,
 //    markup: '<path class="p1"/><path class="connection-wrap"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
     markup: '<path class="p1"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
@@ -216,21 +220,21 @@ var link1 = new joint.dia.Link({
         //anchor: { name: 'left', args: { dx: -10 }},
         //connectionPoint: { name: 'perpendicular', args: { padding: 4 }}
         //connectionPoint: { name: 'anchor' }
-        anchor: { name: 'midSide' },
-        connectionPoint: { name: 'anchor' }
+        anchor: { name: 'perpendicular' },
+        connectionPoint: { name: 'boundary' }
     },
     target: {
         id: r2.id,
         inVector: { x: -100, y: 0 },
         //anchor: { name: 'center', args2: { dx: 10, dy: 10 }},
         //connectionPoint: { name: 'perpendicular', args: { padding: 4 }}
-        anchor: { name: 'midSide', args: { padding: 0 }},
+        anchor: { name: 'perpendicular', args: { padding: 0 }},
         connectionPoint: { name: 'anchor' }
     },
     z: 10,
-    connector: { name: 'vectorDriven' },
+    //connector: { name: 'vectorDriven' },
     //router: { name: 'orthogonal' },
-    //router: { name: 'trim' },
+    router: { name: 'trim' },
     //connector: { name: 'trim' },
     vertices: [{ x: 500, y: 100 }],
     attrs: {
@@ -343,7 +347,7 @@ r3.translate(0, 80);
 
 var r4 = r3.clone();
 graph.addCell(r4);
-r4.translate(300);
+r4.translate(300, 1);
 
 var link2 = new joint.dia.Link({
     markup: '<path/><path/>',
@@ -392,15 +396,64 @@ r6.translate(300);
 r6.attr({ '.': { magnet: false } });
 
 var link3 = new joint.dia.Link({
-
-    source: { id: r5.id },
-    target: { id: r6.id, selector: 'text' },
+    markup: '<path class="p2"/><path class="p1"/>',
+    z: -1,
+    source: {
+        id: r5.id,
+        anchor: { name: 'right', args: { dx: 10 }},
+        connectionPoint: { name: 'anchor' },
+        outVector: { x: 50, y: 0 },
+    },
+    target: {
+        id: r6.id,
+        anchor: { name: 'left', args: { dx: -10 }},
+        connectionPoint: { name: 'anchor' },
+        inVector: { x: -50, y: 0 },
+    },
+    connector: { name: 'vectorDriven' },
+    vertices: [{ x: 500, y: 250 }],
+    showTools: 2,
     attrs: {
-        '.marker-source': {
-            d: 'M 10 0 L 0 5 L 10 10 z'
+        '.p1': {
+            drawPath: true,
+            fill: 'none',
+            stroke: 'gray',
+            strokeWidth: 10,
+            strokeLinejoin: 'round',
+            targetMarker: {
+                type: 'path',
+                fill: 'gray',
+                stroke: 'none',
+                d: 'M 0 -5 -10 0 0 5 z'
+            },
+            sourceMarker: {
+                type: 'path',
+                fill: 'gray',
+                stroke: 'none',
+                d: 'M -10 -5 0 0 -10 5 0 5 0 -5 z'
+            }
         },
-        '.marker-target': {
-            d: 'M 10 0 L 0 5 L 10 10 z'
+        '.p2': {
+            drawPath: true,
+            transform: 'translate(5,5)',
+            stroke: '#000000',
+            strokeOpacity: 0.2,
+            strokeWidth: 10,
+            fill: 'none',
+            targetMarker: {
+                type: 'path',
+                fill: '#000000',
+                'fill-opacity': .2,
+                stroke: 'none',
+                d: 'M 0 -5 -10 0 0 5 z'
+            },
+            sourceMarker: {
+                type: 'path',
+                fill: '#000000',
+                'fill-opacity': .2,
+                stroke: 'none',
+                d: 'M -10 -5 0 0 -10 5 0 5 0 -5 z'
+            }
         }
     }
 });

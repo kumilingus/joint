@@ -743,7 +743,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
 
         var paperOptions = this.paper.options;
         var sourceAnchor;
-        if (false && firstVertex && sourceBBox.containsPoint(firstVertex)) {
+        if (true && firstVertex && sourceBBox.containsPoint(firstVertex)) {
             sourceAnchor = new g.Point(firstVertex);
             firstVertex = verticesArr[1];
             vertices.splice(0,1);
@@ -754,7 +754,7 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         }
 
         var targetAnchor;
-        if (false && lastVertex && targetBBox.containsPoint(lastVertex)) {
+        if (true && lastVertex && targetBBox.containsPoint(lastVertex)) {
             targetAnchor = new g.Point(lastVertex);
             lastVertex = verticesArr[verticesArr.length - 2];
             vertices.splice(-1,1);

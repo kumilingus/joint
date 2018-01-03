@@ -477,6 +477,27 @@
         }
     });
 
+    var Boundary = Tool.extend({
+        tagName: 'rect',
+        options: {
+            padding: 10
+        },
+        attributes: {
+            'fill': 'none',
+            'stroke': '#1ABC9C',
+            'stroke-width': 3,
+            'stroke-dasharray': '5, 10',
+            'pointer-events': 'none'
+        },
+        onRender: function() {
+            this.update();
+        },
+        update: function() {
+            var bbox = this.relatedView.getPath().bbox().inflate(this.options.padding);
+            this.vel.attr(bbox.toJSON());
+        }
+    })
+
     // Export
     joint.dia.tools = {
         Vertices: Vertices,
@@ -484,7 +505,8 @@
         SourceArrowhead: SourceArrowhead,
         TargetArrowhead: TargetArrowhead,
         Remove: Remove,
-        Vectors: Vectors
+        Vectors: Vectors,
+        Boundary: Boundary
     };
 
     joint.dia.Tool = Tool;
