@@ -753,7 +753,10 @@ joint.dia.CellView = joint.mvc.View.extend({
         var $root = $(root || this.el);
         // These are either descendants of `this.$el` of `this.$el` itself.
         // `.` is a special selector used to select the wrapping `<g>` element.
-        return (selector === '.') ? $root : $root.find(selector);
+        if (!selector || selector === '.') return $root;
+        var nodes = this.nodes;
+        if (nodes && nodes[selector]) return $(nodes[selector]);
+        return $root.find(selector);
     },
 
     notify: function(eventName) {
@@ -1232,6 +1235,46 @@ joint.dia.CellView = joint.mvc.View.extend({
 
             this.updateRelativeAttributes(node, processedAttrs, refBBox, opt);
         }
+    },
+
+    selector: 'root',
+
+    renderDOMSubtree: function() {
+        var markup = this.model.get('markup') || this.model.markup;
+        if (!markup) throw new Error('properties.markup is missing while the default render() implementation is used.');
+        var subtree;
+        if (typeof markup === 'string') {
+            subtree = V(markup);
+        } else if (Array.isArray(markup)) {
+            var nodes = {};
+            var rootSelector = this.selector;
+            if (rootSelector) nodes[rootSelector] = this.el;
+            var subtree = document.createDocumentFragment();
+            var queue = [markup, subtree];
+            while (queue.length > 0) {
+                var parentNode = queue.pop();
+                var siblingsDef = queue.pop();
+                for (var i = 0, n = siblingsDef.length; i < n; i++) {
+                    var nodeDef = siblingsDef[i];
+                    if (!nodeDef.hasOwnProperty('tagName')) throw new Error('missing tagName');
+                    // TODO: check for namespace URI
+                    var node = V(nodeDef.tagName, nodeDef.attributes).node;
+                    if (nodeDef.hasOwnProperty('className')) node.className.baseVal = nodeDef.className;
+                    if (nodeDef.hasOwnProperty('selector')) {
+                        var nodeSelector = nodeDef.selector;
+                        if (nodes[nodeSelector]) throw new Error('properies.markup: duplicate name');
+                        nodes[nodeSelector] = node;
+                    }
+                    parentNode.appendChild(node);
+                    var childrenDef = nodeDef.children;
+                    if (Array.isArray(childrenDef)) {
+                        queue.push(childrenDef, node);
+                    }
+                }
+            }
+            this.nodes = nodes;
+        }
+        this.vel.append(subtree);
     },
 
     mergeProcessedAttributes: function(processedAttrs, roProcessedAttrs) {

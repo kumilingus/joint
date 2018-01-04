@@ -453,6 +453,8 @@ joint.dia.ElementView = joint.dia.CellView.extend({
     // default markup is not desirable.
     renderMarkup: function() {
 
+        this.renderDOMSubtree();
+        return;
         var markup = this.model.get('markup') || this.model.markup;
 
         if (markup) {
@@ -554,7 +556,8 @@ joint.dia.ElementView = joint.dia.CellView.extend({
 
         var position = this.model.get('position') || { x: 0, y: 0 };
 
-        this.vel.attr('transform', 'translate(' + position.x + ',' + position.y + ')');
+        //this.vel.attr('transform', 'translate(' + position.x + ',' + position.y + ')');
+        this.vel.translate(position.x, position.y, { absolute: true });
     },
 
     rotate: function() {
@@ -562,6 +565,13 @@ joint.dia.ElementView = joint.dia.CellView.extend({
         var rotatable = this.rotatableNode;
         if (!rotatable) {
             // If there is no rotatable elements, then there is nothing to rotate.
+            var angle = this.model.get('angle') || 0;
+            var size = this.model.get('size') || { width: 1, height: 1 };
+
+            var ox = size.width / 2;
+            var oy = size.height / 2;
+
+            this.vel.rotate(angle, ox, oy, { absolute: true });
             return;
         }
 

@@ -64,7 +64,8 @@
         pathAttributes: {
             'fill': 'none',
             'stroke': 'transparent',
-            'stroke-width': 10
+            'stroke-width': 10,
+            'cursor': 'cell'
         },
         handels: [],
         events: {

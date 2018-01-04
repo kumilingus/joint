@@ -442,34 +442,41 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         // special markup passed in `properties.markup`.
         var model = this.model;
         var markup = model.get('markup') || model.markup;
-        var children = V(markup);
+        if (!Array.isArray(markup)) {
+            var children = V(markup);
 
-        // custom markup may contain only one children
-        if (!Array.isArray(children)) children = [children];
+            // custom markup may contain only one children
+            if (!Array.isArray(children)) children = [children];
 
-        // Cache all children elements for quicker access.
-        this._V = {}; // vectorized markup;
-        children.forEach(function(child) {
+            // Cache all children elements for quicker access.
+            this._V = {}; // vectorized markup;
+            children.forEach(function(child) {
 
-            var className = child.attr('class');
+                var className = child.attr('class');
 
-            if (className) {
-                // Strip the joint class name prefix, if there is one.
-                className = joint.util.removeClassNamePrefix(className);
-                this._V[$.camelCase(className)] = child;
-            }
+                if (className) {
+                    // Strip the joint class name prefix, if there is one.
+                    className = joint.util.removeClassNamePrefix(className);
+                    this._V[$.camelCase(className)] = child;
+                }
 
-        }, this);
+            }, this);
 
-        // Only the connection path is mandatory
-        //if (!this._V.connection) throw new Error('link: no connection path in the markup');
+            // Only the connection path is mandatory
+            //if (!this._V.connection) throw new Error('link: no connection path in the markup');
 
+        } else {
+            this._V = {};
+            this.renderDOMSubtree();
+        }
         // partial rendering
         this.renderTools();
         this.renderVertexMarkers();
         this.renderArrowheadMarkers();
 
-        this.vel.append(children);
+        if (!Array.isArray(markup)) {
+            this.vel.append(children);
+        }
 
         // rendering labels has to be run after the link is appended to DOM tree. (otherwise <Text> bbox
         // returns zero values)

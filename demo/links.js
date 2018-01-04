@@ -213,7 +213,30 @@ var link1 = new joint.dia.Link({
     showTools: 1,
     vertexOnDblClick: true,
 //    markup: '<path class="p1"/><path class="connection-wrap"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
-    markup: '<path class="p1"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
+    //markup: '<path class="p1"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
+    markup: [{
+        tagName: 'path',
+        selector: 'p1'
+    }, {
+        tagName: 'rect',
+        selector: 'sign'
+    }, {
+        tagName: 'circle',
+        className: 'circulin',
+        selector: 'c1',
+    }, {
+        tagName: 'path',
+        selector: 'p2'
+    }, {
+        tagName: 'circle',
+        selector: 'c2'
+    }, {
+        tagName: 'text',
+        selector: 'sign_text'
+    }, {
+        tagName: 'path',
+        selector: 'p3'
+    }],
     source: {
         id: r1.id,
         outVector: { x: 100, y: 0 },
@@ -238,17 +261,17 @@ var link1 = new joint.dia.Link({
     //connector: { name: 'trim' },
     vertices: [{ x: 500, y: 100 }],
     attrs: {
-        '.': {
+        root: {
             title: 'test\ntest2'
         },
-        '.p1': {
+        p1: {
             drawPath: true,
             fill: 'none',
             stroke: 'black',
             strokeWidth: 6,
             strokeLinejoin: 'round'
         },
-        '.p2': {
+        p2: {
             //ref: { type: 'path' },
             drawPath: true,
             fill: 'none',
@@ -263,7 +286,7 @@ var link1 = new joint.dia.Link({
                 d: 'M 10 -3 10 -10 -2 0 10 10 10 3'
             }
         },
-        '.p3': {
+        p3: {
             atPathT: .4,
             d: 'M 0 3 30 33',
             fill: 'none',
@@ -275,7 +298,7 @@ var link1 = new joint.dia.Link({
                 d: 'M 10 10 -2 0 10 -10'
             }
         },
-        '.sign': {
+        sign: {
             x: -10,
             y: -20,
             width: 20,
@@ -289,14 +312,14 @@ var link1 = new joint.dia.Link({
             //strokeDashoffset: 8
             event: 'myclick:rect'
         },
-        '.sign-text': {
+        sign_text: {
             atPathLength: 30,
             textAnchor: 'middle',
             y: 5,
             text: 'Link',
             writingMode: 'tb'
         },
-        '.c1': {
+        c1: {
             r: 10,
             stroke: 'black',
             fill: 'lightgray',
@@ -306,7 +329,7 @@ var link1 = new joint.dia.Link({
             //strokeDashoffset: -3
             event: 'myclick:circle'
         },
-        '.c2': {
+        c2: {
             r: 5,
             stroke: 'black',
             fill: 'white',
@@ -314,22 +337,21 @@ var link1 = new joint.dia.Link({
             strokeWidth: 1,
             pointerEvents: 'none'
         }
-
     }
 });
 
 paper.on('myclick:circle', function(linkView, evt) {
     evt.stopPropagation();
     var link = linkView.model;
-    var t = link.attr('.c1/atPathT');
+    var t = link.attr('_c1/atPathT');
     if (t > .1) {
         t = .1;
     } else {
         t = .9;
     }
 
-    link.transition('attrs/.c1/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
-    link.transition('attrs/.c2/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
+    link.transition('attrs/_c1/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
+    link.transition('attrs/_c2/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
 
 });
 
@@ -350,14 +372,28 @@ graph.addCell(r4);
 r4.translate(300, 1);
 
 var link2 = new joint.dia.Link({
-    markup: '<path/><path/>',
+    //markup: '<path/><path/>',
+    markup: [{
+        tagName: 'path',
+        selector: 'stroke',
+        attributes: {
+            stroke: 'black',
+            fill: 'none'
+        }
+    },{
+        tagName: 'path',
+        selector: 'fill'
+    }, {
+        tagName: 'g',
+        selector: 'group'
+    }],
     source: { id: r3.id },
     target: { id: r4.id },
     attrs: {
-        'path:nth-child(2)': {
+        fill: {
             drawPath: true,
-            fill: 'none',
             strokeWidth: 8,
+            fill: 'none',
             stroke: {
                 type: 'linearGradient',
                 stops: [
@@ -366,11 +402,9 @@ var link2 = new joint.dia.Link({
                 ]
             },
         },
-        'path:first': {
+        stroke: {
             drawPath: true,
-            strokeWidth: 10,
-            stroke: 'black',
-            fill: 'none'
+            strokeWidth: 10
         }
     }
 });
@@ -383,32 +417,99 @@ graph.addCell(link2);
 
 title(250, 230, 'Changing source and target selectors of a link');
 
-var r5 = r3.clone();
-graph.addCell(r5);
-r5.translate(0, 80);
+// var r5 = r3.clone();
+// graph.addCell(r5);
+// r5.translate(0, 80);
 
-var r6 = r5.clone();
-graph.addCell(r6);
-r6.translate(300);
+// var r6 = r5.clone();
+// graph.addCell(r6);
+// r6.translate(300);
 
-// Example on setting `magnet === false` on the overall element. In this case,
-// only the text can be a target of a link for this specific element.
-r6.attr({ '.': { magnet: false } });
+// // Example on setting `magnet === false` on the overall element. In this case,
+// // only the text can be a target of a link for this specific element.
+// r6.attr({ '.': { magnet: false } });
+
+
+
+var Polygon = joint.dia.Element.define('Polygon', {
+    //markup: '<g class="rotatable"><polygon/></g>',
+    markup: [{
+        tagName: 'g',
+        className: 'rotatable',
+        children: [{
+            tagName: 'polygon',
+            selector: 'body'
+        }]
+    }],
+    attrs: {
+        body: {
+            tabs: [0, 0, 0, 0],
+            stroke: '#ddd',
+            fill: 'orange'
+        }
+    }
+}, null , {
+    attributes: {
+        tabs: { /* [topTab, rightTab, bottomTab, leftTab] */
+            qualify: _.isArray,
+            set: function(tabs, refBBox) {
+                var tabSize = 10;
+                var points = [];
+                var refCenter = refBBox.center();
+                var refPoints = [
+                    refBBox.origin(),
+                    refBBox.topRight(),
+                    refBBox.corner(),
+                    refBBox.bottomLeft()
+                ];
+                for (var i = 0; i < 4; i++) {
+                    var a = refPoints[i];
+                    var b = refPoints[i + 1] || refPoints[0];
+                    points.push(a);
+                    if (tabs[i]) {
+                        var mid = g.Line(a, b).midpoint();
+                        points.push(
+                            mid.clone().move(b, tabSize),
+                            mid.clone().move(refCenter, tabs[i] * tabSize),
+                            mid.clone().move(a, tabSize)
+                        );
+                    }
+                }
+                return {
+                    points: points.join(' ').replace(/@/g,' ')
+                };
+            }
+        }
+    }
+});
+
+var r5 = new Polygon({
+    size: { width: 100, height: 50 },
+    attrs: {
+        polygon: {
+            tabs: [0,1,0,0]
+        }
+    }
+});
+r5.position(300, 200).addTo(graph);
+var r6 = r5.clone().translate(300).attr({
+    polygon: { tabs: [0,0,0,-1] }
+}).addTo(graph)
 
 var link3 = new joint.dia.Link({
     markup: '<path class="p2"/><path class="p1"/>',
     z: -1,
     source: {
         id: r5.id,
-        anchor: { name: 'right', args: { dx: 10 }},
+        anchor: { name: 'right', args: { dx: 4 }},
         connectionPoint: { name: 'anchor' },
-        outVector: { x: 50, y: 0 },
+        outVector: { x: 100, y: 0 },
     },
     target: {
         id: r6.id,
-        anchor: { name: 'left', args: { dx: -10 }},
+        anchor: { name: 'left', args: { dx: -4 }},
         connectionPoint: { name: 'anchor' },
-        inVector: { x: -50, y: 0 },
+        inVector: { x: -100, y: 0 },
     },
     connector: { name: 'vectorDriven' },
     vertices: [{ x: 500, y: 250 }],
@@ -418,41 +519,41 @@ var link3 = new joint.dia.Link({
             drawPath: true,
             fill: 'none',
             stroke: 'gray',
-            strokeWidth: 10,
+            strokeWidth: 20,
             strokeLinejoin: 'round',
             targetMarker: {
                 type: 'path',
                 fill: 'gray',
                 stroke: 'none',
-                d: 'M 0 -5 -10 0 0 5 z'
+                d: 'M 0 -10 -10 0 0 10 z'
             },
             sourceMarker: {
                 type: 'path',
                 fill: 'gray',
                 stroke: 'none',
-                d: 'M -10 -5 0 0 -10 5 0 5 0 -5 z'
+                d: 'M -10 -10 0 0 -10 10 0 10 0 -10 z'
             }
         },
         '.p2': {
             drawPath: true,
-            transform: 'translate(5,5)',
+            transform: 'translate(3,6)',
             stroke: '#000000',
             strokeOpacity: 0.2,
-            strokeWidth: 10,
+            strokeWidth: 20,
             fill: 'none',
             targetMarker: {
                 type: 'path',
                 fill: '#000000',
                 'fill-opacity': .2,
                 stroke: 'none',
-                d: 'M 0 -5 -10 0 0 5 z'
+                d: 'M 0 -10 -10 0 0 10 z'
             },
             sourceMarker: {
                 type: 'path',
                 fill: '#000000',
                 'fill-opacity': .2,
                 stroke: 'none',
-                d: 'M -10 -5 0 0 -10 5 0 5 0 -5 z'
+                d: 'M -10 -10 0 0 -10 10 0 10 0 -10 z'
             }
         }
     }
@@ -765,3 +866,43 @@ var link12 = new joint.dia.Link({
     router: { name: 'oneSide', args: { side: 'bottom' } }
 });
 graph.addCell(link12);
+
+
+joint.dia.Element.define('ng.Rect', {
+    attrs: {
+        body: {
+            refWidth: '100%',
+            refHeight: '100%'
+        },
+        label: {
+            text: 'Rectangle',
+            refX: '50%',
+            refY: '50%',
+            xAlignment: 'middle',
+            yAlignment: '50%'
+        }
+    }
+}, {
+    markup: [{
+        // tagName: 'g',
+        // className: 'rotatable',
+        // children: [{
+            tagName: 'rect',
+            selector: 'body',
+            attributes: {
+                stroke: '#000000',
+                fill: '#FFFFFF'
+            }
+        },{
+            tagName: 'text',
+            selector: 'label'
+        }]
+    // }]
+});
+
+var ngRect = new joint.shapes.ng.Rect({
+    size: { width: 100, height: 50 },
+    position: { x: 50, y: 50 }
+});
+
+ngRect.addTo(graph);
