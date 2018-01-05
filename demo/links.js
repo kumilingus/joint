@@ -210,7 +210,7 @@ joint.dia.attributes.title = {
 };
 
 var link1 = new joint.dia.Link({
-    showTools: 1,
+    //showTools: 1,
     vertexOnDblClick: true,
 //    markup: '<path class="p1"/><path class="connection-wrap"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
     //markup: '<path class="p1"/><rect class="sign"/><circle class="c1"/><path class="p2"/><circle class="c2"/><text class="sign-text"/><path class="p3"/>',
@@ -326,7 +326,8 @@ var link1 = new joint.dia.Link({
             atPathT: .5,
             strokeWidth: 1,
             //strokeDasharray: '26, 5, 26, 5',
-            //strokeDashoffset: -3
+            //strokeDashoffset: -3,
+            magnet: 'passive',
             event: 'myclick:circle'
         },
         c2: {
@@ -343,15 +344,15 @@ var link1 = new joint.dia.Link({
 paper.on('myclick:circle', function(linkView, evt) {
     evt.stopPropagation();
     var link = linkView.model;
-    var t = link.attr('_c1/atPathT');
+    var t = link.attr('c1/atPathT');
     if (t > .1) {
         t = .1;
     } else {
         t = .9;
     }
 
-    link.transition('attrs/_c1/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
-    link.transition('attrs/_c2/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
+    link.transition('attrs/c1/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
+    link.transition('attrs/c2/atPathT', t, { delay: 100, duration: 2000, timingFunction: joint.util.timing.inout });
 
 });
 
@@ -872,10 +873,10 @@ joint.dia.Element.define('ng.Rect', {
     attrs: {
         body: {
             refWidth: '100%',
-            refHeight: '100%'
+            refHeight: '100%',
+            strokeWidth: 10
         },
         label: {
-            text: 'Rectangle',
             refX: '50%',
             refY: '50%',
             xAlignment: 'middle',
@@ -891,7 +892,7 @@ joint.dia.Element.define('ng.Rect', {
             selector: 'body',
             attributes: {
                 stroke: '#000000',
-                fill: '#FFFFFF'
+                fill: 'none'
             }
         },{
             tagName: 'text',
@@ -901,8 +902,17 @@ joint.dia.Element.define('ng.Rect', {
 });
 
 var ngRect = new joint.shapes.ng.Rect({
-    size: { width: 100, height: 50 },
+    size: { width: 300, height: 300 },
     position: { x: 50, y: 50 }
 });
 
 ngRect.addTo(graph);
+
+
+// paper.options.viewport = function(view) {
+//     var model = view.model;
+//     if (model === ngRect) return true;
+//     if (model.isElement()) return ngRect.getBBox().intersect(view.model.getBBox());
+//     return !this.awaitingCellUpdate(model.attributes.source.id) && !this.awaitingCellUpdate(model.attributes.target.id);
+// };
+paper.unfreeze();

@@ -106,7 +106,8 @@ joint.dia.Paper = joint.mvc.View.extend({
         // Check whether to allow or disallow the link connection while an arrowhead end (source/target)
         // being changed.
         validateConnection: function(cellViewS, magnetS, cellViewT, magnetT, end, linkView) {
-            return (end === 'target' ? cellViewT : cellViewS) instanceof joint.dia.ElementView;
+            //return (end === 'target' ? cellViewT : cellViewS) instanceof joint.dia.ElementView;
+            return true;
         },
 
         /* EMBEDDING */
@@ -149,7 +150,9 @@ joint.dia.Paper = joint.mvc.View.extend({
         cellViewNamespace: joint.shapes,
 
         // The namespace, where all the cell views are defined.
-        highlighterNamespace: joint.highlighters
+        highlighterNamespace: joint.highlighters,
+
+        viewport: null
     },
 
     events: {
@@ -191,7 +194,7 @@ joint.dia.Paper = joint.mvc.View.extend({
         this.listenTo(model, 'add', this.onCellAdded)
             .listenTo(model, 'remove', this.removeView)
             .listenTo(model, 'reset', this.resetViews)
-            .listenTo(model, 'sort', this._onSort)
+//            .listenTo(model, 'sort', this._onSort)
             .listenTo(model, 'batch:stop', this._onBatchStop);
 
         this.on('cell:highlight', this.onCellHighlight)
@@ -202,6 +205,82 @@ joint.dia.Paper = joint.mvc.View.extend({
         this._mousemoved = 0;
         // Hash of all cell views.
         this._views = {};
+    },
+
+    pendingElementsUpdates: {},
+    pendingLinksUpdates: {},
+
+    requestCellUpdate: function(cell, type) {
+        var updates = (cell.isLink()) ? this.pendingLinksUpdates : this.pendingElementsUpdates;
+        var id = cell.id;
+        var currentType = updates[id] || 0;
+        if (currentType & type) return this;
+        updates[id] = currentType | type;
+        var links = this.model.getConnectedLinks(cell);
+        for (var i = 0, n = links.length; i < n; i++) {
+            this.requestCellUpdate(links[i], 32);
+        }
+        return this;
+    },
+
+
+    awaitingCellUpdate: function(id) {
+        return this.pendingLinksUpdates[id] || this.pendingElementsUpdates[id] || 0;
+    },
+
+    asyncDumpId: null,
+
+    asyncDump: function() {
+        if (this.asyncDumpId) this.dump();
+        this.asyncDumpId = joint.util.nextFrame(this.asyncDump, this);
+    },
+
+    dumpCells: function(updates, batchSize) {
+        if (!updates) return;
+        var i = 0;
+        for (var id in updates) {
+            if (i >= batchSize) return i;
+            var view = this._views[id];
+            if (view) {
+                var type = updates[id];
+                if (type <= 0) continue;
+                var viewportFn = this.options.viewport;
+                if (typeof viewportFn === 'function') {
+                    if (!viewportFn.call(this, view)) continue;
+                }
+                updates[id] = view.confirmUpdate(type);
+                i++;
+            }
+        }
+        return i;
+    },
+
+    dumpElements: function(batchSize) {
+        return this.dumpCells(this.pendingElementsUpdates, batchSize);
+    },
+
+    dumpLinks: function(batchSize) {
+        return this.dumpCells(this.pendingLinksUpdates, batchSize);
+    },
+
+    dump: function() {
+        batchSize = Infinity;
+        var processed = this.dumpElements(batchSize);
+        if (batchSize > processed) this.dumpLinks(batchSize - processed);
+        this.insertViews();
+    },
+
+    freeze: function() {
+        if (this.asyncDumpId) {
+            joint.util.cancelFrame(this.asyncDumpId);
+            this.asyncDumpId = null;
+        }
+    },
+
+    unfreeze: function() {
+        if (!this.asyncDumpId) {
+            this.asyncDump();
+        }
     },
 
     cloneOptions: function() {
@@ -624,14 +703,14 @@ joint.dia.Paper = joint.mvc.View.extend({
     renderView: function(cell) {
 
         var view = this._views[cell.id] = this.createViewForModel(cell);
-
-        V(this.viewport).append(view.el);
         view.paper = this;
-        view.render();
-
+        //view.render();
+        this.requestCellUpdate(cell, 64 | 128);
         // This is the only way to prevent image dragging in Firefox that works.
         // Setting -moz-user-select: none, draggable="false" attribute or user-drag: none didn't help.
-        $(view.el).find('image').on('dragstart', function() { return false; });
+
+        // TODO: remove!!! move to paper events ...
+        //$(view.el).find('image').on('dragstart', function() { return false; });
 
         return view;
     },
@@ -734,7 +813,7 @@ joint.dia.Paper = joint.mvc.View.extend({
 
         // Run insertion sort algorithm in order to efficiently sort DOM elements according to their
         // associated model `z` attribute.
-
+        return;
         var $cells = $(this.viewport).children('[model-id]');
         var cells = this.model.get('cells');
 
@@ -745,6 +824,59 @@ joint.dia.Paper = joint.mvc.View.extend({
 
             return (cellA.get('z') || 0) > (cellB.get('z') || 0) ? 1 : -1;
         });
+    },
+
+    insertView: function(view, async) {
+        var z = view.model.get('z');
+        if (async) {
+            this.insertedViews[z] || (this.insertedViews[z] = []);
+            this.insertedViews[z].push(view);
+            return;
+        }
+        var pivot = this.addZPivot(z);
+        this.viewport.insertBefore(view.el, pivot);
+    },
+
+    insertViews: function() {
+        for (var z in this.insertedViews) {
+            var pivot = this.addZPivot(z);
+            var fragment = document.createDocumentFragment();
+            var views = this.insertedViews[z];
+            for (var i = 0, n = views.length; i < n; i++) {
+                fragment.appendChild(views[i].el);
+            }
+            this.viewport.insertBefore(fragment, pivot);
+        }
+        this.insertedViews = {};
+    },
+
+    insertedViews: {},
+    zPivots: {},
+
+    addZPivot: function(z) {
+        z || (z = 0);
+        var pivots = this.zPivots;
+        var pivot = pivots[z];
+        if (pivot) return pivot;
+        pivot = pivots[z] = document.createComment('z-index:' + z);
+        var neighborZ = -Infinity;
+        for (var currentZ in pivots) {
+            currentZ = +currentZ;
+            if (currentZ < z && currentZ > neighborZ) {
+                neighborZ = currentZ;
+                if (neighborZ === z - 1) continue;
+            }
+        }
+        var viewport = this.viewport;
+        if (neighborZ !== -Infinity) {
+            var neighborPivot = pivots[neighborZ];
+            // Insert After
+            viewport.insertBefore(pivot, neighborPivot.nextSibling);
+        } else {
+            // First Child
+            viewport.insertBefore(pivot, viewport.firstChild);
+        }
+        return pivot;
     },
 
     scale: function(sx, sy, ox, oy) {

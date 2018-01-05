@@ -417,14 +417,31 @@ joint.dia.ElementView = joint.dia.CellView.extend({
 
         var model = this.model;
 
-        this.listenTo(model, 'change:position', this.translate);
-        this.listenTo(model, 'change:size', this.resize);
-        this.listenTo(model, 'change:angle', this.rotate);
-        this.listenTo(model, 'change:markup', this.render);
+        // this.listenTo(model, 'change:position', this.translate);
+        // this.listenTo(model, 'change:size', this.resize);
+        // this.listenTo(model, 'change:angle', this.rotate);
+        // this.listenTo(model, 'change:markup', this.render);
 
+        this.listenTo(model, 'change:position', function() {
+            console.count('model:translate');
+            this.requestUpdate(4);
+        });
+        this.listenTo(model, 'change:size', function() {
+            this.requestUpdate(8);
+        });
+        this.listenTo(model, 'change:angle', function() {
+            this.requestUpdate(16);
+        });
+        this.listenTo(model, 'change:markup', function() {
+            this.requestUpdate(64);
+        });
         this._initializePorts();
     },
 
+    onChangeAttrs: function(a, b, opt) {
+        var type = (opt.dirty) ? 64 : 32;
+        this.requestUpdate(type);
+    },
     /**
      * @abstract
      */
@@ -447,6 +464,36 @@ joint.dia.ElementView = joint.dia.CellView.extend({
         });
 
         this._renderPorts();
+    },
+
+    confirmUpdate: function(type) {
+        var paper = this.paper;
+        if (!this.paper) return type;
+        if (type & 128) {
+            paper.insertView(this, true);
+            type -= 128;
+        }
+        if (type & 64) {
+            this.render();
+            return 0;
+        }
+        if (type & 32) {
+            this.update();
+            return 0;
+        }
+        if (type & 16) {
+            this.resize();
+            type -= 16;
+        }
+        if (type & 8) {
+            this.rotate();
+            type -= 8;
+        }
+        if (type & 4) {
+            this.translate();
+            type -= 4;
+        }
+        return type;
     },
 
     // `prototype.markup` is rendered by default. Set the `markup` attribute on the model if the

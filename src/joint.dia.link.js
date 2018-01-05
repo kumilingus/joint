@@ -312,10 +312,10 @@ joint.dia.LinkView = joint.dia.CellView.extend({
 
         // create methods in prototype, so they can be accessed from any instance and
         // don't need to be create over and over
-        if (typeof this.constructor.prototype.watchSource !== 'function') {
-            this.constructor.prototype.watchSource = this.createWatcher('source');
-            this.constructor.prototype.watchTarget = this.createWatcher('target');
-        }
+        // if (typeof this.constructor.prototype.watchSource !== 'function') {
+        //     this.constructor.prototype.watchSource = this.createWatcher('source');
+        //     this.constructor.prototype.watchTarget = this.createWatcher('target');
+        // }
 
         // `_.labelCache` is a mapping of indexes of labels in the `this.get('labels')` array to
         // `<g class="label">` nodes wrapped by Vectorizer. This allows for quick access to the
@@ -337,9 +337,15 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         this.listenTo(model, 'change:smooth change:manhattan change:router change:connector', this.update);
         this.listenTo(model, 'change:toolMarkup', this.onToolsChange);
         this.listenTo(model, 'change:labels change:labelMarkup', this.onLabelsChange);
-        this.listenTo(model, 'change:vertices change:vertexMarkup', this.onVerticesChange);
-        this.listenTo(model, 'change:source', this.onSourceChange);
-        this.listenTo(model, 'change:target', this.onTargetChange);
+        //this.listenTo(model, 'change:vertices change:vertexMarkup', this.onVerticesChange);
+        // this.listenTo(model, 'change:source', this.onSourceChange);
+        // this.listenTo(model, 'change:target', this.onTargetChange);
+        this.listenTo(model, 'change:vertices change:vertexMarkup', function() {
+            this.requestUpdate(16);
+        });
+        this.listenTo(model, 'change:source change:target', function(cell) {
+            this.requestUpdate(32);
+        });
     },
 
     onSourceChange: function(cell, source, opt) {
@@ -483,9 +489,11 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         this.renderLabels();
 
         // start watching the ends of the link for changes
-        this.watchSource(model, model.get('source'))
-            .watchTarget(model, model.get('target'))
-            .update();
+        // this.watchSource(model, model.get('source'))
+        //     .watchTarget(model, model.get('target'))
+        //     .update();
+
+        this.update();
 
         return this;
     },
@@ -1034,6 +1042,63 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         }
 
         return watchEndModel;
+    },
+
+    onChangeAttrs: function(cell, attrs, opt) {
+        var type = (opt.dirty) ? 64 : 32;
+        this.requestUpdate(type);
+    },
+
+    confirmUpdate: function(type) {
+        var paper = this.paper;
+        if (!this.paper) return type;
+        if (type & 128) {
+            paper.insertView(this, true);
+            type -= 128;
+        }
+        if (type & 64) {
+            this.updateEnd('source');
+            this.updateEnd('target');
+            this.render();
+            return 0;
+        }
+        if (type & 32) {
+            this.updateEnd('source');
+            this.updateEnd('target');
+            this.update();
+            return 0;
+        }
+        if (type & 16) {
+            this.update();
+            return 0;
+        }
+        return type;
+    },
+
+    updateEnd: function(endType) {
+        var end = this.model.get(endType);
+        if (end.id) {
+            var view = this.paper.findViewByModel(end.id);
+            if (view) {
+                if (view.model.isLink()) {
+                    var selector = this.constructor.makeSelector(end);
+                    var magnetElement = view.el.querySelector(selector);
+                    this[endType + 'BBox'] = (magnetElement) ? view.getStrokeBBox(magnetElement) : new g.Rect(view.getPath().pointAt(.5));
+                    this[endType + 'View'] = view;
+                    this[endType + 'Magnet'] = magnetElement;
+                } else {
+                    var selector = this.constructor.makeSelector(end);
+                    var magnetElement = view.el.querySelector(selector);
+                    this[endType + 'BBox'] = view.getStrokeBBox(magnetElement);
+                    this[endType + 'View'] = view;
+                    this[endType + 'Magnet'] = magnetElement;
+                }
+            }
+        } else {
+            // the link end is a point ~ rect 1x1
+            this[endType + 'BBox'] = g.rect(end.x || 0, end.y || 0, 1, 1);
+            this[endType + 'View'] = this[endType + 'Magnet'] = null;
+        }
     },
 
     onEndModelChange: function(endType, endModel, opt) {

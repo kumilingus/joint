@@ -722,18 +722,30 @@ joint.dia.CellView = joint.mvc.View.extend({
         this.$el.attr('data-type', this.model.get('type'));
 
         this.listenTo(this.model, 'change:attrs', this.onChangeAttrs);
+        this.listenTo(this.model, 'change:z', function() {
+            this.requestUpdate(128);
+        });
+    },
+
+    requestUpdate: function(type) {
+        var paper = this.paper;
+        if (paper) paper.requestCellUpdate(this.model, type);
+    },
+
+    confirmUpdate: function(type) {
+
     },
 
     onChangeAttrs: function(cell, attrs, opt) {
 
-        if (opt.dirty) {
+        // if (opt.dirty) {
 
-            // dirty flag could be set when a model attribute was removed and it needs to be cleared
-            // also from the DOM element. See cell.removeAttr().
-            return this.render();
-        }
+        //     // dirty flag could be set when a model attribute was removed and it needs to be cleared
+        //     // also from the DOM element. See cell.removeAttr().
+        //     return this.render();
+        // }
 
-        return this.update(cell, attrs, opt);
+        // return this.update(cell, attrs, opt);
     },
 
     // Return `true` if cell link is allowed to perform a certain UI `feature`.
