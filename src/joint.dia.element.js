@@ -426,10 +426,10 @@ joint.dia.ElementView = joint.dia.CellView.extend({
             console.count('model:translate');
             this.requestUpdate(4);
         });
-        this.listenTo(model, 'change:size', function() {
+        this.listenTo(model, 'change:angle', function() {
             this.requestUpdate(8);
         });
-        this.listenTo(model, 'change:angle', function() {
+        this.listenTo(model, 'change:size', function() {
             this.requestUpdate(16);
         });
         this.listenTo(model, 'change:markup', function() {
@@ -471,7 +471,8 @@ joint.dia.ElementView = joint.dia.CellView.extend({
         if (!this.paper) return type;
         if (type & 128) {
             paper.insertView(this, true);
-            type -= 128;
+            //return type - 128;
+            type ^= 128;
         }
         if (type & 64) {
             this.render();
@@ -483,15 +484,16 @@ joint.dia.ElementView = joint.dia.CellView.extend({
         }
         if (type & 16) {
             this.resize();
-            type -= 16;
+            type ^= 16;
         }
         if (type & 8) {
             this.rotate();
-            type -= 8;
+            type ^= 8;
         }
         if (type & 4) {
+            console.count('view:translate');
             this.translate();
-            type -= 4;
+            type ^= 4;
         }
         return type;
     },
@@ -499,22 +501,7 @@ joint.dia.ElementView = joint.dia.CellView.extend({
     // `prototype.markup` is rendered by default. Set the `markup` attribute on the model if the
     // default markup is not desirable.
     renderMarkup: function() {
-
-        this.renderDOMSubtree();
-        return;
-        var markup = this.model.get('markup') || this.model.markup;
-
-        if (markup) {
-
-            var svg = joint.util.template(markup)();
-            var nodes = V(svg);
-
-            this.vel.append(nodes);
-
-        } else {
-
-            throw new Error('properties.markup is missing while the default render() implementation is used.');
-        }
+        this.vel.empty().append(this.renderDOMSubtree());
     },
 
     render: function() {

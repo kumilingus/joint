@@ -134,6 +134,40 @@
         };
     }
 
+    function atPathWrapper(method) {
+        return function(value, path) {
+            var p, angle;
+                var tangent = path[method](value);
+            if (tangent) {
+                angle = tangent.vector().vectorAngle(new g.Point(1, 0));
+                p = tangent.start;
+            } else {
+                p = path.start;
+                angle = 0;
+            }
+            return { transform: 'translate(' + p.x + ',' + p.y + ') rotate(' + angle + ')' };
+        }
+    }
+
+    function generateMarker(attrs) {
+        marker = {};
+        // stroke
+        var stroke = attrs.stroke;
+        if (typeof stroke === 'string') {
+            marker['stroke'] = stroke;
+            marker['fill'] = stroke;
+        }
+        // opacity
+        var strokeOpacity = attrs.strokeOpacity;
+        if (strokeOpacity === undefined) strokeOpacity = attrs['stroke-opacity'];
+        if (strokeOpacity === undefined) strokeOpacity = attrs.opacity
+        if (strokeOpacity !== undefined) {
+            marker['stroke-opacity'] = strokeOpacity;
+            marker['fill-opacity'] = strokeOpacity;
+        }
+        return marker;
+    }
+
     var attributesNS = joint.dia.attributes = {
 
         xlinkHref: {
@@ -219,22 +253,24 @@
 
         sourceMarker: {
             qualify: util.isPlainObject,
-            set: function(marker) {
+            set: function(marker, refBBox, node, attrs) {
+                marker = util.assign(generateMarker(attrs), marker);
                 return { 'marker-start': 'url(#' + this.paper.defineMarker(marker) + ')' };
             }
         },
 
         targetMarker: {
             qualify: util.isPlainObject,
-            set: function(marker) {
-                marker = util.assign({ transform: 'rotate(180)' }, marker);
+            set: function(marker, refBBox, node, attrs) {
+                marker = util.assign(generateMarker(attrs), { 'transform': 'rotate(180)' }, marker);
                 return { 'marker-end': 'url(#' + this.paper.defineMarker(marker) + ')' };
             }
         },
 
         vertexMarker: {
             qualify: util.isPlainObject,
-            set: function(marker) {
+            set: function(marker, refBBox, node, attrs) {
+                marker = util.assign(generateMarker(attrs), marker);
                 return { 'marker-mid': 'url(#' + this.paper.defineMarker(marker) + ')' };
             }
         },
@@ -431,6 +467,21 @@
 
         refPointsKeepOffset: {
             set: pointsWrapper({ resetOffset: false })
+        },
+
+        // Path Attributes
+        connection: {
+            path: function(value, path) {
+                return { d: path.serialize() };
+            }
+        },
+
+        atPathLength: {
+            path: atPathWrapper('tangentAtLength')
+        },
+
+        atPathRatio: {
+            path: atPathWrapper('tangentAt')
         }
     };
 

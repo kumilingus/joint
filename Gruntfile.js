@@ -37,7 +37,9 @@ module.exports = function(grunt) {
             'plugins/connectors/joint.connectors.smooth.js',
             'plugins/connectors/joint.connectors.jumpover.js',
             'plugins/layout/ports/*.js',
-            'plugins/highlighters/*.js'
+            'plugins/highlighters/*.js',
+            'plugins/shapes/ng/joint.shapes.ng.js',
+            'plugins/shapes/ng/joint.shapes.ng.LinkView.js'
         ],
 
         geometry: ['src/geometry.js'],

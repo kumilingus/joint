@@ -1286,7 +1286,7 @@ joint.dia.CellView = joint.mvc.View.extend({
             }
             this.nodes = nodes;
         }
-        this.vel.append(subtree);
+        return subtree;
     },
 
     mergeProcessedAttributes: function(processedAttrs, roProcessedAttrs) {

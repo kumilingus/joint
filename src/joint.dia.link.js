@@ -1054,7 +1054,8 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         if (!this.paper) return type;
         if (type & 128) {
             paper.insertView(this, true);
-            type -= 128;
+            return type - 128;
+            //type -= 128;
         }
         if (type & 64) {
             this.updateEnd('source');
@@ -1079,6 +1080,12 @@ joint.dia.LinkView = joint.dia.CellView.extend({
         var end = this.model.get(endType);
         if (end.id) {
             var view = this.paper.findViewByModel(end.id);
+            if (this.paper.options.useModelGeometry) {
+                this[endType + 'BBox'] = view.model.getBBox();
+                this[endType + 'View'] = view;
+                this[endType + 'Magnet'] = null;
+                return;
+            }
             if (view) {
                 if (view.model.isLink()) {
                     var selector = this.constructor.makeSelector(end);

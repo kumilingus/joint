@@ -177,6 +177,35 @@ joint.connectors.trim = function(source, target, route, opt, linkView) {
                 return refBBox.center();
             }
             return bbox.center();
+        },
+        parallel: function(bbox, refBBox, opt) {
+            var distance = opt.distance;
+            if (!isFinite(distance)) distance = 5;
+            var link = this.model;
+            var source = link.get('source');
+            var target = link.get('target');
+            var anchor = bbox.center();
+            if (source.id && target.id) {
+                var graph = this.paper.model;
+                var sourceModel = link.getSourceElement();
+                if (sourceModel) {
+                    var connectedLinks = graph.getConnectedLinks(sourceModel, { outbound: true });
+                    var sameLinks = connectedLinks.filter(function(_link) {
+                        var _source = _link.get('source');
+                        var _target = _link.get('target');
+                        return _source && _source.id === source.id &&
+                                (!_source.port || (_source.port === source.port)) &&
+                                _target && _target.id === target.id &&
+                                (!_target.port || (_target.port === target.port));
+                    });
+                    var linksCount = sameLinks.length;
+                    if (linksCount <= 1) return anchor;
+                    if (refBBox.width > 0) sameLinks.reverse();
+                    var linkIndex = sameLinks.indexOf(link);
+                    anchor.move(refBBox.center().rotate(anchor, 90 * Math.pow(-1, linkIndex)), distance);
+                }
+            }
+            return anchor;
         }
     }
 

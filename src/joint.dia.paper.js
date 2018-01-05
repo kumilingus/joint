@@ -9,7 +9,6 @@ joint.dia.Paper = joint.mvc.View.extend({
         height: 600,
         origin: { x: 0, y: 0 }, // x,y coordinates in top-left corner
         gridSize: 1,
-
         // Whether or not to draw the grid lines on the paper's DOM element.
         // e.g drawGrid: true, drawGrid: { color: 'red', thickness: 2 }
         drawGrid: false,
@@ -152,7 +151,9 @@ joint.dia.Paper = joint.mvc.View.extend({
         // The namespace, where all the cell views are defined.
         highlighterNamespace: joint.highlighters,
 
-        viewport: null
+        viewport: null,
+
+        useModelGeometry: true
     },
 
     events: {
@@ -214,7 +215,7 @@ joint.dia.Paper = joint.mvc.View.extend({
         var updates = (cell.isLink()) ? this.pendingLinksUpdates : this.pendingElementsUpdates;
         var id = cell.id;
         var currentType = updates[id] || 0;
-        if (currentType & type) return this;
+        //if (currentType & type) return this;
         updates[id] = currentType | type;
         var links = this.model.getConnectedLinks(cell);
         for (var i = 0, n = links.length; i < n; i++) {
@@ -223,6 +224,9 @@ joint.dia.Paper = joint.mvc.View.extend({
         return this;
     },
 
+    requestCellRemoval: function() {
+
+    },
 
     awaitingCellUpdate: function(id) {
         return this.pendingLinksUpdates[id] || this.pendingElementsUpdates[id] || 0;
@@ -243,10 +247,14 @@ joint.dia.Paper = joint.mvc.View.extend({
             var view = this._views[id];
             if (view) {
                 var type = updates[id];
-                if (type <= 0) continue;
+                //if (type <= 0) continue;
                 var viewportFn = this.options.viewport;
                 if (typeof viewportFn === 'function') {
-                    if (!viewportFn.call(this, view)) continue;
+                    if (!viewportFn.call(this, view)) {
+                        view.vel.empty();
+                        updates[id] |= 64;
+                        continue;
+                    }
                 }
                 updates[id] = view.confirmUpdate(type);
                 i++;
@@ -854,11 +862,12 @@ joint.dia.Paper = joint.mvc.View.extend({
     zPivots: {},
 
     addZPivot: function(z) {
+        z = +z;
         z || (z = 0);
         var pivots = this.zPivots;
         var pivot = pivots[z];
         if (pivot) return pivot;
-        pivot = pivots[z] = document.createComment('z-index:' + z);
+        pivot = pivots[z] = document.createComment('z-index:' + (z + 1));
         var neighborZ = -Infinity;
         for (var currentZ in pivots) {
             currentZ = +currentZ;
@@ -1130,7 +1139,7 @@ joint.dia.Paper = joint.mvc.View.extend({
 
         if (linkViewOrModel instanceof joint.dia.Link) {
             link = linkViewOrModel;
-        } else if (linkViewOrModel instanceof joint.dia.LinkView) {
+        } else if (linkViewOrModel instanceof joint.dia.LinkView || linkViewOrModel instanceof joint.shapes.ng.LinkView) {
             link = linkViewOrModel.model;
         } else {
             throw new Error('Must provide link model or view.');
