@@ -149,18 +149,18 @@
         }
     }
 
-    function generateMarker(attrs) {
-        marker = {};
+    function contextMarker(context) {
+        var marker = {};
         // stroke
-        var stroke = attrs.stroke;
+        var stroke = context.stroke;
         if (typeof stroke === 'string') {
             marker['stroke'] = stroke;
             marker['fill'] = stroke;
         }
         // opacity
-        var strokeOpacity = attrs.strokeOpacity;
-        if (strokeOpacity === undefined) strokeOpacity = attrs['stroke-opacity'];
-        if (strokeOpacity === undefined) strokeOpacity = attrs.opacity
+        var strokeOpacity = context.strokeOpacity;
+        if (strokeOpacity === undefined) strokeOpacity = context['stroke-opacity'];
+        if (strokeOpacity === undefined) strokeOpacity = context.opacity
         if (strokeOpacity !== undefined) {
             marker['stroke-opacity'] = strokeOpacity;
             marker['fill-opacity'] = strokeOpacity;
@@ -254,7 +254,7 @@
         sourceMarker: {
             qualify: util.isPlainObject,
             set: function(marker, refBBox, node, attrs) {
-                marker = util.assign(generateMarker(attrs), marker);
+                marker = util.assign(contextMarker(attrs), marker);
                 return { 'marker-start': 'url(#' + this.paper.defineMarker(marker) + ')' };
             }
         },
@@ -262,7 +262,7 @@
         targetMarker: {
             qualify: util.isPlainObject,
             set: function(marker, refBBox, node, attrs) {
-                marker = util.assign(generateMarker(attrs), { 'transform': 'rotate(180)' }, marker);
+                marker = util.assign(contextMarker(attrs), { 'transform': 'rotate(180)' }, marker);
                 return { 'marker-end': 'url(#' + this.paper.defineMarker(marker) + ')' };
             }
         },
@@ -270,7 +270,7 @@
         vertexMarker: {
             qualify: util.isPlainObject,
             set: function(marker, refBBox, node, attrs) {
-                marker = util.assign(generateMarker(attrs), marker);
+                marker = util.assign(contextMarker(attrs), marker);
                 return { 'marker-mid': 'url(#' + this.paper.defineMarker(marker) + ')' };
             }
         },

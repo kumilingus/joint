@@ -196,7 +196,7 @@ joint.dia.Paper = joint.mvc.View.extend({
             .listenTo(model, 'remove', this.removeView)
             .listenTo(model, 'reset', this.resetViews)
 //            .listenTo(model, 'sort', this._onSort)
-            .listenTo(model, 'batch:stop', this._onBatchStop);
+//            .listenTo(model, 'batch:stop', this._onBatchStop);
 
         this.on('cell:highlight', this.onCellHighlight)
             .on('cell:unhighlight', this.onCellUnhighlight)
@@ -276,6 +276,7 @@ joint.dia.Paper = joint.mvc.View.extend({
         var processed = this.dumpElements(batchSize);
         if (batchSize > processed) this.dumpLinks(batchSize - processed);
         this.insertViews();
+        // clean pivots
     },
 
     freeze: function() {
@@ -714,12 +715,6 @@ joint.dia.Paper = joint.mvc.View.extend({
         view.paper = this;
         //view.render();
         this.requestCellUpdate(cell, 64 | 128);
-        // This is the only way to prevent image dragging in Firefox that works.
-        // Setting -moz-user-select: none, draggable="false" attribute or user-drag: none didn't help.
-
-        // TODO: remove!!! move to paper events ...
-        //$(view.el).find('image').on('dragstart', function() { return false; });
-
         return view;
     },
 

@@ -1253,7 +1253,7 @@ joint.dia.CellView = joint.mvc.View.extend({
 
     renderDOMSubtree: function() {
         var markup = this.model.get('markup') || this.model.markup;
-        if (!markup) throw new Error('properties.markup is missing while the default render() implementation is used.');
+        if (!markup) throw new Error('dia.CellView: markup not defined');
         var subtree;
         if (typeof markup === 'string') {
             subtree = V(markup);
@@ -1268,13 +1268,13 @@ joint.dia.CellView = joint.mvc.View.extend({
                 var siblingsDef = queue.pop();
                 for (var i = 0, n = siblingsDef.length; i < n; i++) {
                     var nodeDef = siblingsDef[i];
-                    if (!nodeDef.hasOwnProperty('tagName')) throw new Error('missing tagName');
+                    if (!nodeDef.hasOwnProperty('tagName')) throw new Error('dia.CellView: missing tagName');
                     // TODO: check for namespace URI
                     var node = V(nodeDef.tagName, nodeDef.attributes).node;
                     if (nodeDef.hasOwnProperty('className')) node.className.baseVal = nodeDef.className;
                     if (nodeDef.hasOwnProperty('selector')) {
                         var nodeSelector = nodeDef.selector;
-                        if (nodes[nodeSelector]) throw new Error('properies.markup: duplicate name');
+                        if (nodes[nodeSelector]) throw new Error('dia.CellView: selector must be unique');
                         nodes[nodeSelector] = node;
                     }
                     parentNode.appendChild(node);
