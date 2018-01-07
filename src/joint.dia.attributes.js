@@ -346,6 +346,116 @@
             }
         },
 
+        margin: {
+            qualify: function(margin, node) {
+                return node instanceof SVGElement;
+            }
+        },
+
+        verticalAlignment: {
+            position: function(type, refBBox, node, attrs) {
+                var position = refBBox.origin();
+                var height = refBBox.height;
+                var margin = util.normalizeSides(attrs.margin);
+                var marginTop = margin.top;
+                var marginBottom = margin.bottom;
+                if (!isFinite(marginTop)) marginTop = 0;
+                if (!isFinite(marginBottom)) marginBottom = 0;
+                switch(type) {
+                    case 'above':
+                        position.y -= marginBottom;
+                        break;
+                    case 'below':
+                        position.y += height + marginTop;
+                        break;
+                    case 'center':
+                        position.y += height / 2 + (marginTop - marginBottom);
+                        break;
+                    case 'top':
+                        position.y += marginTop;
+                        break;
+                    case 'bottom':
+                        position.y += height - marginBottom;
+                        break;
+                    default:
+                        break;
+                }
+                return position;
+            },
+            offset: function(type, nodeBBox) {
+                var offset = new g.Point(0, - nodeBBox.y);
+                var height = nodeBBox.height;
+                switch(type) {
+                    case 'above':
+                        offset.y -= height;
+                        break;
+                    case 'center':
+                        offset.y -= height / 2;
+                        break;
+                    case 'bottom':
+                        offset.y -= height;
+                        break;
+                    case 'below':
+                    case 'top':
+                    default:
+                        break;
+                }
+                return offset;
+            }
+        },
+
+        horizontalAlignment: {
+            position: function(type, refBBox, node, attrs) {
+                var position = refBBox.origin();
+                var width = refBBox.width;
+                var margin = util.normalizeSides(attrs.margin);
+                var marginLeft = margin.left;
+                var marginRight = margin.right;
+                if (!isFinite(marginLeft)) marginLeft = 0;
+                if (!isFinite(marginRight)) marginRight = 0;
+                switch(type) {
+                    case 'before':
+                        position.x -= marginRight;
+                        break;
+                    case 'after':
+                        position.x += width + marginLeft;
+                        break;
+                    case 'center':
+                        position.x += width / 2 + (marginLeft - marginRight);
+                        break;
+                    case 'left':
+                        position.x += marginLeft;
+                        break;
+                    case 'right':
+                        position.x += width - marginRight;
+                        break;
+                    default:
+                        break;
+                }
+                return position;
+            },
+            offset: function(type, nodeBBox) {
+                var offset = new g.Point(- nodeBBox.x, 0);
+                var width = nodeBBox.width;
+                switch(type) {
+                    case 'before':
+                        offset.x -= width;
+                        break;
+                    case 'center':
+                        offset.x -= width / 2;
+                        break;
+                    case 'right':
+                        offset.x -= width;
+                        break;
+                    case 'left':
+                    case 'after':
+                    default:
+                        break;
+                }
+                return offset;
+            }
+        },
+
         annotations: {
             qualify: function(annotations, node, attrs) {
                 return (attrs.text !== undefined);
@@ -471,7 +581,12 @@
 
         // Path Attributes
         connection: {
-            path: function(value, path) {
+            path: function(opt, path) {
+                var tx = opt.tx;
+                if (!isFinite(tx)) tx = 0;
+                var ty = opt.ty;
+                if (!isFinite(ty)) ty = 0;
+                if (tx || ty) path.translate(tx, ty);
                 return { d: path.serialize() };
             }
         },

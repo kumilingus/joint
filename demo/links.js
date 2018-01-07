@@ -33,7 +33,9 @@ var r1 = new joint.shapes.ng.Rect({
     position: { x: 335, y: 50 },
     size: { width: 70, height: 30 },
     attrs: {
-        label: { text: 'ngRect' }
+        label: {
+            text: 'ngRect',
+        }
     }
 });
 
@@ -388,7 +390,8 @@ var ngRect = new joint.shapes.ng.Rect({
     position: { x: 50, y: 50 },
     attrs: {
         body: {
-            strokeWidth: 10
+            strokeWidth: 10,
+            fill: 'none'
         }
     }
 });

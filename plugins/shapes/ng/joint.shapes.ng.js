@@ -1,6 +1,8 @@
-(function(joint) {
+(function(Element, Link) {
 
-    var Element = joint.dia.Element;
+    'use strict';
+
+    // Elements
 
     Element.define('ng.Rect', {
         attrs: {
@@ -9,15 +11,13 @@
                 refHeight: '100%',
                 strokeWidth: 2,
                 stroke: '#000000',
-                fill: 'none'
+                fill: '#FFFFFF'
             },
             label: {
-                refX: '50%',
-                refY: '50%',
-                y: '.3em',
-                textAnchor: 'middle',
-                yAlignment: '50%',
-                fontSize: 14
+                fontSize: 14,
+                verticalAlignment: 'center',
+                horizontalAlignment: 'center',
+                fill: '#333333'
             }
         }
     }, {
@@ -39,13 +39,13 @@
                 refRy: '50%',
                 strokeWidth: 2,
                 stroke: '#333333',
-                fill: 'none'
+                fill: '#FFFFFF'
             },
             label: {
-                refX: '50%',
-                refY: '50%',
-                textAnchor: 'middle',
-                yAlignment: '50%',
+                fontSize: 14,
+                verticalAlignment: 'center',
+                horizontalAlignment: 'center',
+                margin: 5,
                 fill: '#333333'
             }
         }
@@ -65,13 +65,13 @@
                 refD: 'M 0 0 L 10 0 10 10 0 10 Z',
                 strokeWidth: 2,
                 stroke: '#333333',
-                fill: 'none'
+                fill: '#FFFFFF'
             },
             label: {
-                refX: '50%',
-                refY: '50%',
-                textAnchor: 'middle',
-                yAlignment: '50%',
+                fontSize: 14,
+                verticalAlignment: 'center',
+                horizontalAlignment: 'center',
+                margin: 5,
                 fill: '#333333'
             }
         }
@@ -91,13 +91,13 @@
                 refPoints: '0 0 10 0 10 10 0 10',
                 strokeWidth: 2,
                 stroke: '#333333',
-                fill: 'none'
+                fill: '#FFFFFF'
             },
             label: {
-                refX: '50%',
-                refY: '50%',
-                textAnchor: 'middle',
-                yAlignment: '50%',
+                fontSize: 14,
+                verticalAlignment: 'center',
+                horizontalAlignment: 'center',
+                margin: 5,
                 fill: '#333333'
             }
         }
@@ -117,15 +117,14 @@
                 refPoints: '0 0 10 0 10 10 0 10 0 0',
                 strokeWidth: 2,
                 stroke: '#333333',
-                fill: 'none'
+                fill: '#FFFFFF'
             },
             label: {
-                refX: '50%',
-                refY: '50%',
-                textAnchor: 'middle',
-                yAlignment: '50%',
-                fill: '#333333',
-                fontSize: 14
+                fontSize: 14,
+                verticalAlignment: 'center',
+                horizontalAlignment: 'center',
+                margin: 5,
+                fill: '#333333'
             }
         }
     }, {
@@ -138,7 +137,31 @@
         }]
     });
 
-    var Link = joint.dia.Link;
+    Element.define('ng.Image', {
+        attrs: {
+            body: {
+                refWidth: '100%',
+                refHeight: '100%',
+                // xlinkHref: '[URL]'
+            },
+            label: {
+                fontSize: 14,
+                verticalAlignment: 'below',
+                horizontalAlignment: 'center',
+                margin: 5,
+                fill: '#333333'
+            }
+        }
+    }, {
+        markup: [{
+            tagName: 'image',
+            selector: 'body'
+        }, {
+            tagName: 'text',
+            selector: 'label'
+        }]
+    });
+    // Links
 
     Link.define('ng.Link', {
         attrs: {
@@ -232,8 +255,7 @@
                 }
             },
             shadow: {
-                connection: true,
-                transform: 'translate(3,6)',
+                connection: { tx: 3, ty: 6 },
                 stroke: '#000000',
                 strokeOpacity: 0.2,
                 strokeWidth: 20,
@@ -266,4 +288,4 @@
         }]
     });
 
-})(joint);
+})(joint.dia.Element, joint.dia.Link);

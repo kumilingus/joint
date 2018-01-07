@@ -343,8 +343,8 @@
             if (!this.paper) return type;
             if (type & 128) {
                 paper.insertView(this, true);
-                //return type - 128;
-                type ^= 128;
+                return type - 128;
+                //type ^= 128;
             }
             if (type & 64) {
                 this.updateEnd('source');
