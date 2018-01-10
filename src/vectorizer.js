@@ -102,6 +102,17 @@ V = Vectorizer = (function() {
         return this;
     };
 
+    var VPrototype = V.prototype;
+
+    Object.defineProperty(VPrototype, 'id', {
+        get: function () {
+            return this.node.id;
+        },
+        set: function (id) {
+            this.node.id = id;
+        }
+    });
+
     /**
      * @param {SVGGElement} toElem
      * @returns {SVGMatrix}
@@ -340,186 +351,162 @@ V = Vectorizer = (function() {
         }
     };
 
-    V.prototype.text = function(content, opt) {
+    // Text() helpers
 
-        // Replace all spaces with the Unicode No-break space (http://www.fileformat.info/info/unicode/char/a0/index.htm).
-        // IE would otherwise collapse all spaces into one.
-        content = V.sanitizeText(content);
-        opt = opt || {};
-        var eol = opt.eol;
-        var lines = content.split('\n');
-        var tspan;
-
-        // An empty text gets rendered into the DOM in webkit-based browsers.
-        // In order to unify this behaviour across all browsers
-        // we rather hide the text element when it's empty.
-        if (content) {
-            this.removeAttr('display');
-        } else {
-            this.attr('display', 'none');
-        }
-
-        // Preserve spaces. In other words, we do not want consecutive spaces to get collapsed to one.
-        this.attr('xml:space', 'preserve');
-
-        // Easy way to erase all `<tspan>` children;
-        this.node.textContent = '';
-
-        var textNode = this.node;
-
-        if (opt.textPath) {
-
-            // Wrap the text in the SVG <textPath> element that points
-            // to a path defined by `opt.textPath` inside the internal `<defs>` element.
-            var defs = this.find('defs');
-            if (defs.length === 0) {
-                defs = V('defs');
-                this.append(defs);
-            }
-
-            // If `opt.textPath` is a plain string, consider it to be directly the
+    function createTextPathNode(attrs, vel) {
+        attrs || (attrs = {});
+        var textPathElement = V('textPath');
+        var d = attrs.d;
+        if (d && attrs['xlink:href'] === undefined) {
+            // If `opt.attrs` is a plain string, consider it to be directly the
             // SVG path data for the text to go along (this is a shortcut).
             // Otherwise if it is an object and contains the `d` property, then this is our path.
-            var d = Object(opt.textPath) === opt.textPath ? opt.textPath.d : opt.textPath;
-            if (d) {
-                var path = V('path', { d: d });
-                defs.append(path);
-            }
-
-            var textPath = V('textPath');
+            // Wrap the text in the SVG <textPath> element that points
+            // to a path defined by `opt.attrs` inside the `<defs>` element.
+            var linkedPath = V('path').attr('d', d).appendTo(vel.ensureDefs());
+            textPathElement.attr('xlink:href', '#' + linkedPath.id);
+        }
+        if (V.isObject(attrs)) {
             // Set attributes on the `<textPath>`. The most important one
             // is the `xlink:href` that points to our newly created `<path/>` element in `<defs/>`.
             // Note that we also allow the following construct:
             // `t.text('my text', { textPath: { 'xlink:href': '#my-other-path' } })`.
             // In other words, one can completely skip the auto-creation of the path
             // and use any other arbitrary path that is in the document.
-            if (!opt.textPath['xlink:href'] && path) {
-                textPath.attr('xlink:href', '#' + path.node.id);
-            }
+            textPathElement.attr(attrs);
+        }
+        return textPathElement.node;
+    }
 
-            if (Object(opt.textPath) === opt.textPath) {
-                textPath.attr(opt.textPath);
+    function annotateTextLine(lineNode, lineAnnotations, opt) {
+        opt || (opt = {});
+        var includeAnnotationIndices = opt.includeAnnotationIndices;
+        var eol = opt.eol;
+        var maxFontSize = 0;
+        var lastJ = lineAnnotations.length - 1;
+        for (var j = 0; j <= lastJ; j++) {
+            var annotation = lineAnnotations[j];
+            if (V.isObject(annotation)) {
+                var annotationAttrs = annotation.attrs;
+                var vTSpan = V('tspan', annotationAttrs);
+                var tspanNode = vTSpan.node;
+                var t = annotation.t;
+                if (eol && j === lastJ) t += eol;
+                tspanNode.textContent = t;
+                // Per annotation className
+                var annotationClass = annotationAttrs['class'];
+                if (annotationClass) vTSpan.addClass(annotationClass);
+                // If `opt.includeAnnotationIndices` is `true`,
+                // set the list of indices of all the applied annotations
+                // in the `annotations` attribute. This list is a comma
+                // separated list of indices.
+                if (includeAnnotationIndices) vTSpan.attr('annotations', annotation.annotations);
+                // Check for max font size
+                var fontSize = parseFloat(annotationAttrs['font-size']);
+                if (fontSize && fontSize > maxFontSize) maxFontSize = fontSize;
+            } else {
+                if (eol && j === lastJ) annotation += eol;
+                tspanNode = document.createTextNode(annotation || ' ');
             }
-            this.append(textPath);
+            lineNode.appendChild(tspanNode);
+        }
+        return maxFontSize;
+    }
+
+    V.prototype.text = function(content, opt) {
+
+        if (typeof content !== 'string') throw new Exception('Vectorizer: text() expects the first argument to be a string.');
+
+        // Replace all spaces with the Unicode No-break space (http://www.fileformat.info/info/unicode/char/a0/index.htm).
+        // IE would otherwise collapse all spaces into one.
+        content = V.sanitizeText(content);
+        opt || (opt = {});
+
+        // End of Line character
+        var eol = opt.eol;
+        // Text along path
+        var textPath = opt.textPath
+        // Vertical shift
+        var y = opt.y;
+        if (y === 0) y = '0';
+        // Horizontal shift
+        var x = opt.x;
+        if (x === undefined) x = this.attr('x') || 0;
+        // Annotations
+        var iai = opt.includeAnnotationIndices;
+        var annotations = opt.annotations;
+        if (annotations && !V.isArray(annotations)) annotations = [annotations];
+        // Shift all the <tspan> but first by one line (`1em`)
+        var defaultLineHeight = opt.lineHeight;
+        var lineHeight = (defaultLineHeight === 'auto') ? '1.5em' : (defaultLineHeight || '1em');
+
+        var containerNode;
+        if (textPath) {
             // Now all the `<tspan>`s will be inside the `<textPath>`.
-            textNode = textPath.node;
+            if (typeof textPath === 'string') textPath = { d: textPath };
+            containerNode = createTextPathNode(textPath, this);
+        } else {
+            containerNode = document.createDocumentFragment();
         }
 
         var offset = 0;
-        var x = ((opt.x !== undefined) ? opt.x : this.attr('x')) || 0;
-
-        // Shift all the <tspan> but first by one line (`1em`)
-        var lineHeight = opt.lineHeight || '1em';
-        if (opt.lineHeight === 'auto') {
-            lineHeight = '1.5em';
-        }
-
-        var firstLineHeight = 0;
-        for (var i = 0; i < lines.length; i++) {
-
-            var vLineAttributes = { 'class': 'v-line' };
-            if (i === 0) {
-                vLineAttributes.dy = '0em';
-            } else {
-                vLineAttributes.dy = lineHeight;
-                vLineAttributes.x = x;
-            }
-            var vLine = V('tspan', vLineAttributes);
-
-            var lastI = lines.length - 1;
+        var lines = content.split('\n');
+        for (var i = 0, lastI = lines.length - 1; i <= lastI; i++) {
+            var dy = lineHeight;
+            var maxFontSize = 0;
+            var lineClassName = 'v-line';
+            var lineNode = document.createElementNS(V.namespace.xmlns, 'tspan');
             var line = lines[i];
             if (line) {
-
                 // Get the line height based on the biggest font size in the annotations for this line.
-                var maxFontSize = 0;
-                if (opt.annotations) {
-
+                if (annotations) {
                     // Find the *compacted* annotations for this line.
-                    var lineAnnotations = V.annotateString(lines[i], V.isArray(opt.annotations) ? opt.annotations : [opt.annotations], { offset: -offset, includeAnnotationIndices: opt.includeAnnotationIndices });
-
-                    var lastJ = lineAnnotations.length - 1;
-                    for (var j = 0; j < lineAnnotations.length; j++) {
-
-                        var annotation = lineAnnotations[j];
-                        if (V.isObject(annotation)) {
-
-                            var fontSize = parseFloat(annotation.attrs['font-size']);
-                            if (fontSize && fontSize > maxFontSize) {
-                                maxFontSize = fontSize;
-                            }
-
-                            tspan = V('tspan', annotation.attrs);
-                            if (opt.includeAnnotationIndices) {
-                                // If `opt.includeAnnotationIndices` is `true`,
-                                // set the list of indices of all the applied annotations
-                                // in the `annotations` attribute. This list is a comma
-                                // separated list of indices.
-                                tspan.attr('annotations', annotation.annotations);
-                            }
-                            if (annotation.attrs['class']) {
-                                tspan.addClass(annotation.attrs['class']);
-                            }
-
-                            if (eol && j === lastJ && i !== lastI) {
-                                annotation.t += eol;
-                            }
-                            tspan.node.textContent = annotation.t;
-
-                        } else {
-
-                            if (eol && j === lastJ && i !== lastI) {
-                                annotation += eol;
-                            }
-                            tspan = document.createTextNode(annotation || ' ');
-                        }
-                        vLine.append(tspan);
-                    }
-
-                    if (opt.lineHeight === 'auto' && maxFontSize && i !== 0) {
-
-                        vLine.attr('dy', (maxFontSize * 1.2) + 'px');
-                    }
-
+                    var lineAnnotations = V.annotateString(line, annotations, {
+                        offset: -offset,
+                        includeAnnotationIndices: iai
+                    });
+                    maxFontSize = annotateTextLine(lineNode, lineAnnotations, {
+                        includeAnnotationIndices: iai,
+                        eol: (i !== lastI && eol)
+                    });
+                    if (maxFontSize && defaultLineHeight === 'auto' && i !== 0) dy = (maxFontSize * 1.2) + 'px';
                 } else {
-
-                    if (eol && i !== lastI) {
-                        line += eol;
-                    }
-
-                    vLine.node.textContent = line;
-                }
-
-                if (i === 0) {
-                    firstLineHeight = maxFontSize;
+                    if (eol && i !== lastI) line += eol;
+                    lineNode.textContent = line;
                 }
             } else {
-
                 // Make sure the textContent is never empty. If it is, add a dummy
                 // character and make it invisible, making the following lines correctly
                 // relatively positioned. `dy=1em` won't work with empty lines otherwise.
-                vLine.addClass('v-empty-line');
+                lineNode.textContent = '-';
+                lineClassName += ' v-empty-line';
                 // 'opacity' needs to be specified with fill, stroke. Opacity without specification
                 // is not applied in Firefox
-                vLine.node.style.fillOpacity = 0;
-                vLine.node.style.strokeOpacity = 0;
-                vLine.node.textContent = '-';
+                var lineNodeStyle = lineNode.style;
+                lineNodeStyle.fillOpacity = 0;
+                lineNodeStyle.strokeOpacity = 0;
             }
-
-            V(textNode).append(vLine);
-
+            if (i > 0) {
+                lineNode.setAttribute('dy', dy);
+                lineNode.setAttribute('x', x);
+            } else {
+                lineNode.setAttribute('dy', y || maxFontSize || '0.8em');
+            }
+            lineNode.className.baseVal = lineClassName;
+            containerNode.appendChild(lineNode);
             offset += line.length + 1;      // + 1 = newline character.
         }
 
-        // `alignment-baseline` does not work in Firefox.
-        // Setting `dominant-baseline` on the `<text>` element doesn't work in IE9.
-        // In order to have the 0,0 coordinate of the `<text>` element (or the first `<tspan>`)
-        // in the top left corner we translate the `<text>` element by `0.8em`.
-        // See `http://www.w3.org/Graphics/SVG/WG/wiki/How_to_determine_dominant_baseline`.
-        // See also `http://apike.ca/prog_svg_text_style.html`.
-        var y = this.attr('y');
-        if (y === null) {
-            this.attr('y', firstLineHeight || '0.8em');
-        }
+        this.empty();
+        this.attr({
+            // Preserve spaces. In other words, we do not want consecutive spaces to get collapsed to one.
+            'xml:space': 'preserve',
+            // An empty text gets rendered into the DOM in webkit-based browsers.
+            // In order to unify this behaviour across all browsers
+            // we rather hide the text element when it's empty.
+            'display': (content) ? null : 'none'
+        });
+        this.append(containerNode);
 
         return this;
     };
@@ -681,6 +668,11 @@ V = Vectorizer = (function() {
         var defs = this.svg().node.getElementsByTagName('defs');
 
         return (defs && defs.length) ? V(defs[0]) : undefined;
+    };
+
+    V.prototype.ensureDefs = function() {
+
+        return this.defs() || V('defs').appendTo(this.svg() || this);
     };
 
     V.prototype.clone = function() {

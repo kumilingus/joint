@@ -1066,7 +1066,14 @@ joint.dia.CellView = joint.mvc.View.extend({
                     // specify with some SVG attributes e.g. `text-anchor`, `cx`, `cy`
                     translation = def.offset.call(this, attrVal, nodeBBox, node, rawAttrs);
                     if (translation) {
-                        nodePosition.offset(g.Point(translation).scale(sx, sy));
+                        if (translation instanceof SVGMatrix) {
+                            var offsetMatrix = translation.scale(sx, sy);
+                            nodeMatrix = nodeMatrix.multiply(offsetMatrix);
+                            nodePosition.x += offsetMatrix.e;
+                            nodePosition.y += offsetMatrix.f;
+                        } else {
+                            nodePosition.offset(g.Point(translation).scale(sx, sy));
+                        }
                         offseted || (offseted = true);
                     }
                 }

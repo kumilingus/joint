@@ -208,9 +208,10 @@
                 strokeWidth: 4,
                 strokeLinejoin: 'round',
                 targetMarker: {
-                    type: 'path',
-                    stroke: '#000000',
-                    d: 'M 10 -3 10 -10 -2 0 10 10 10 3'
+                    'type': 'path',
+                    'stroke': '#000000',
+                    'stroke-width': 1,
+                    'd': 'M 10 -3 10 -10 -2 0 10 10 10 3'
                 }
             },
             outline: {

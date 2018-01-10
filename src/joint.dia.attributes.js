@@ -292,6 +292,18 @@
                     if (fontSize) {
                         node.setAttribute('font-size', fontSize);
                     }
+                    var textPath = textAttrs.textPath;
+                    if (typeof textPath === 'string') {
+                        var pathNode = this.nodes[textPath];
+                        if (pathNode) {
+                            textAttrs.textPath = {
+                                'xlink:href': '#' + pathNode.id,
+                                'startOffset': '50%',
+                                //'dominant-baseline': 'ideographic'
+                            };
+                            textAttrs.y = '.3em';
+                        }
+                    }
                     V(node).text('' + text, textAttrs);
                     $node.data(cacheName, textHash);
                 }

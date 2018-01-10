@@ -29,12 +29,15 @@ var paper = new joint.dia.Paper({
     linkView: joint.shapes.ng.LinkView,
 });
 
-var r1 = new joint.shapes.ng.Rect({
+var r1 = new joint.shapes.ng.Image({
     position: { x: 335, y: 50 },
     size: { width: 70, height: 30 },
     attrs: {
+        body: {
+            xlinkHref: 'http://via.placeholder.com/70x30'
+        },
         label: {
-            text: 'ngRect',
+            text: 'ngImage\nfref\nfew',
         }
     }
 });
@@ -72,6 +75,29 @@ paper.on('link:mouseleave', function (linkView, evt) {
 // paper.on('blank:pointerdown', function (linkView) {
 //     if (lv) lv.removeTools();
 // });
+
+joint.dia.attributes.flip = {
+    offset: function(direction, nodeBBox, node) {
+        var transform;
+        var center = nodeBBox.center();
+        switch (direction) {
+            case 'h':
+                transform = 'translate(' + (center.x * 2) + ',0) scale(-1,1)';
+                break;
+            case 'v':
+                transform = 'translate(0, ' + (2 * center.y) + ') scale(1,-1)';
+                break;
+            case 'vh':
+            case 'hv':
+                transform = 'translate(' + (center.x * 2) + ',' + (center.y * 2) + ') scale(-1,-1)';
+                break;
+        }
+        //if (transform) node.setAttribute('transform', transform);
+        console.log(V.transformStringToMatrix(transform));
+        if (transform )return V.transformStringToMatrix(transform);
+        return g.Point();
+    }
+};
 
 var link1 = new joint.dia.Link({
     showTools: 1,
@@ -122,6 +148,7 @@ var link1 = new joint.dia.Link({
     //connector: { name: 'vectorDriven' },
     //router: { name: 'orthogonal' },
     router: { name: 'trim' },
+    //connector: { name: 'smooth' },
     //connector: { name: 'trim' },
     vertices: [{ x: 500, y: 100 }],
     attrs: {
@@ -147,6 +174,7 @@ var link1 = new joint.dia.Link({
                 type: 'path',
                 fill: 'lightgray',
                 stroke: 'black',
+                'stroke-width': 1,
                 d: 'M 10 -3 10 -10 -2 0 10 10 10 3'
             }
         },
@@ -178,8 +206,8 @@ var link1 = new joint.dia.Link({
         },
         sign_text: {
             atPathLength: 30,
-            textAnchor: 'middle',
-            y: 5,
+            //textAnchor: 'middle',
+            y: '-1.8em',
             text: 'Link',
             writingMode: 'tb'
         },
@@ -296,7 +324,6 @@ graph.addCell(link4);
 // Changing source and target selectors of the link.
 // -------------------------------------------------
 
-
 var Polygon = joint.dia.Element.define('Polygon', {
     //markup: '<g class="rotatable"><polygon/></g>',
     markup: [{
@@ -353,7 +380,7 @@ var r5 = new Polygon({
     size: { width: 100, height: 50 },
     attrs: {
         polygon: {
-            tabs: [0, 1, 0, 0]
+            tabs: [0, 1, 1, 0]
         }
     }
 });
@@ -378,7 +405,35 @@ var link3 = new joint.shapes.ng.ShadowLink({
     },
     connector: { name: 'vectorDriven' },
     vertices: [{ x: 500, y: 250 }],
-    showTools: 2
+    showTools: 2,
+    markup: [{
+        tagName: 'path',
+        selector: 'line',
+        attributes: {
+            'fill': 'none'
+        }
+    }, {
+        tagName: 'path',
+        selector: 'shadow',
+        attributes: {
+            'fill': 'none'
+        }
+    }, {
+        tagName: 'text',
+        selector: 'label'
+    }],
+    attrs: {
+        label: {
+            textPath: 'line',
+            textAnchor: 'middle',
+            text: 'Label Along Path',
+            fill: 'yellow',
+            fontSize: 14,
+            fontWeight: 'bold',
+            fontFamily: 'fantasy'
+        }
+    }
+
 });
 
 graph.addCell(link3);
