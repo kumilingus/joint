@@ -657,7 +657,8 @@ joint.dia.Paper = joint.mvc.View.extend({
 
         var view = this._views[cell.id] = this.createViewForModel(cell);
 
-        V(this.viewport).append(view.el);
+//        V(this.viewport).append(view.el);
+        this.insertView(view);
         view.paper = this;
         view.render();
 
@@ -1877,7 +1878,43 @@ joint.dia.Paper = joint.mvc.View.extend({
         }
 
         return markerId;
+    },
+
+    insertView: function(view) {
+        var z = view.model.get('z');
+        var pivot = this.addZPivot(z);
+        this.viewport.insertBefore(view.el, pivot);
+    },
+
+    zPivots: {},
+
+    addZPivot: function(z) {
+        z = +z;
+        z || (z = 0);
+        var pivots = this.zPivots;
+        var pivot = pivots[z];
+        if (pivot) return pivot;
+        pivot = pivots[z] = document.createComment('z-index:' + (z + 1));
+        var neighborZ = -Infinity;
+        for (var currentZ in pivots) {
+            currentZ = +currentZ;
+            if (currentZ < z && currentZ > neighborZ) {
+                neighborZ = currentZ;
+                if (neighborZ === z - 1) continue;
+            }
+        }
+        var viewport = this.viewport;
+        if (neighborZ !== -Infinity) {
+            var neighborPivot = pivots[neighborZ];
+            // Insert After
+            viewport.insertBefore(pivot, neighborPivot.nextSibling);
+        } else {
+            // First Child
+            viewport.insertBefore(pivot, viewport.firstChild);
+        }
+        return pivot;
     }
+
 }, {
 
     backgroundPatterns: {
