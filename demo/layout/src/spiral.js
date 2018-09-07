@@ -1,4 +1,4 @@
-(function() {
+(function(joint) {
 
     var graph = new joint.dia.Graph;
     var paper = new joint.dia.Paper({

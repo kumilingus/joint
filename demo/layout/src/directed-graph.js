@@ -1,4 +1,4 @@
-(function() {
+(function(joint) {
 
     var Shape = joint.dia.Element.define('demo.Shape', {
         size: {
