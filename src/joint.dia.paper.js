@@ -369,29 +369,79 @@
             );
         },
 
+        children: function() {
+            var ns = V.namespace;
+            return [{
+                namespaceURI: ns.xhtml,
+                tagName: 'div',
+                className: util.addClassNamePrefix('paper-background'),
+                selector: 'background'
+            }, {
+                namespaceURI: ns.xhtml,
+                tagName: 'div',
+                className: util.addClassNamePrefix('paper-grid'),
+                selector: 'grid'
+            }, {
+                namespaceURI: ns.svg,
+                tagName: 'svg',
+                attributes: {
+                    'width': '100%',
+                    'height': '100%',
+                    'xmlns:xlink': ns.xlink,
+                    'xmlns': ns.svg
+                },
+                selector: 'svg',
+                children: [{
+                    tagName: 'g',
+                    className: util.addClassNamePrefix('viewport'),
+                    selector: 'viewport'
+                },{
+                    // Append `<defs>` element to the SVG document. This is useful for filters and gradients.
+                    // It's desired to have the defs defined before the viewport (e.g. to make a PDF document pick up defs properly).
+                    tagName: 'defs',
+                    selector: 'defs'
+                }, {
+                    tagName: 'g',
+                    className: util.addClassNamePrefix('tools-container'),
+                    selector: 'tools'
+                }]
+            }];
+        },
+
         render: function() {
 
-            this.$el.empty();
+            // this.$el.empty();
 
-            this.svg = V('svg').attr({ width: '100%', height: '100%' }).node;
-            this.viewport = V('g').addClass(util.addClassNamePrefix('viewport')).node;
-            this.defs = V('defs').node;
-            this.tools = V('g').addClass(util.addClassNamePrefix('tools-container')).node;
-            // Append `<defs>` element to the SVG document. This is useful for filters and gradients.
-            // It's desired to have the defs defined before the viewport (e.g. to make a PDF document pick up defs properly).
-            V(this.svg).append([this.defs, this.viewport, this.tools]);
+            this.renderChildren();
+            var childNodes = this.childNodes;
+            this.svg = childNodes.svg;
+            this.viewport = childNodes.viewport;
+            this.defs = childNodes.defs;
+            this.tools = childNodes.tools;
+            this.$background = $(childNodes.background);
+            this.$grid = $(childNodes.grid);
 
-            this.$background = $('<div/>').addClass(util.addClassNamePrefix('paper-background'));
+
+            // var svgVel =  V('svg').attr({ width: '100%', height: '100%' });
+            // this.svg = svgVel.node;
+            // this.viewport = V('g').addClass(util.addClassNamePrefix('viewport')).node;
+            // this.defs = V('defs').node;
+            // this.tools = V('g').addClass(util.addClassNamePrefix('tools-container')).node;
+            // // Append `<defs>` element to the SVG document. This is useful for filters and gradients.
+            // // It's desired to have the defs defined before the viewport (e.g. to make a PDF document pick up defs properly).
+            // svgVel.append([this.defs, this.viewport, this.tools]);
+
+            //this.$background = $('<div/>').addClass(util.addClassNamePrefix('paper-background'));
             if (this.options.background) {
                 this.drawBackground(this.options.background);
             }
 
-            this.$grid = $('<div/>').addClass(util.addClassNamePrefix('paper-grid'));
+            //this.$grid = $('<div/>').addClass(util.addClassNamePrefix('paper-grid'));
             if (this.options.drawGrid) {
                 this.drawGrid();
             }
 
-            this.$el.append(this.$background, this.$grid, this.svg);
+            //this.$el.append(this.$background, this.$grid, this.svg);
 
             return this;
         },
