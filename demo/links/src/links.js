@@ -1,20 +1,40 @@
+joint.connectors.curved = function(sourcePoint, targetPoint, _route, _opt) {
+    var path = new g.Path();
+    var segment;
+    segment = g.Path.createSegment('M', sourcePoint);
+    path.appendSegment(segment);
+    var line = g.Line(sourcePoint, targetPoint);
+    var distance = line.length();
+    var angle = line.angle() % 90;
+    //var angle = 10;
+    if (sourcePoint.x > targetPoint.x) angle *= -1;
+    var a = g.Point(sourcePoint).move(targetPoint, -distance / 4).rotate(sourcePoint, angle);
+    var b = g.Point(targetPoint).move(sourcePoint, -distance / 4).rotate(targetPoint, -angle);
+    segment = g.Path.createSegment('C', a.x, a.y, b.x, b.y, targetPoint.x, targetPoint.y);
+    path.appendSegment(segment);
+    console.log(angle);
+    return path;
+};
+
+
 var graph = new joint.dia.Graph();
 var paper = new joint.dia.Paper({
     el: document.getElementById('paper'),
     width: 800,
     height: 600,
     model: graph,
+    async: true,
     interactive: { linkMove: false },
-    defaultConnectionPoint: {
-        name: 'boundary',
-        args: {
-            extrapolate: true,
-            sticky: true
-        }
-    },
-    validateConnection: function() {
-        return false;
-    }
+    gridSize: 10,
+    // drawGrid: { name: 'mesh' },
+    // defaultConnectionPoint: {
+    //     name: 'boundary',
+    // },
+
+    defaultConnector: { name: 'curved' }
+    // validateConnection: function() {
+    //     return false;
+    // }
 });
 
 var link1 = new joint.shapes.standard.Link({
@@ -162,7 +182,7 @@ var link6 = new joint.shapes.standard.DoubleLink({
 var link7 = new joint.shapes.standard.Link({
     source: { x: 400, y: 200 },
     target: { x: 740, y: 200 },
-    connector: { name: 'smooth' },
+    //connector: { name: 'smooth' },
     attrs: {
         line: {
             targetMarker: {
@@ -444,6 +464,7 @@ paper.on('link:mouseenter', function(linkView) {
         case link1:
         case link3:
         case link4:
+        case rl2:
             tools = [
                 new joint.linkTools.Vertices(),
                 new joint.linkTools.Segments()
@@ -592,3 +613,191 @@ paper.on('myclick:circle', function(linkView, evt) {
     link.transition('attrs/c1/atConnectionRatio', t, transitionOpt);
     link.transition('attrs/c2/atConnectionRatio', t, transitionOpt);
 });
+
+
+var r = rough.svg(paper.svg);
+
+var RoughRectangle = joint.dia.Element.define('rough.Rectangle', {
+    attrs: {
+        root: {
+            rough2: {
+                fill: 'red',
+                hachureAngle: 60,
+                hachureGap: 8
+            }
+        },
+        border: {
+            rough: {
+                index: 1,
+                hachureAngle: 60,
+                hachureGap: 8
+            },
+            stroke: '#333333',
+            strokeWidth: 2,
+            fill: 'none'
+        },
+        body: {
+            rough: {
+                index: 0,
+                hachureAngle: 60,
+                hachureGap: 8
+            },
+            pointerEvents: 'bounding-box',
+            strokeWidth: 2,
+            stroke: 'blue',
+            fill: 'none'
+        },
+        label: {
+            text: 'Rough',
+            textVerticalAnchor: 'top',
+            textAnchor: 'middle',
+            fontFamily: 'fantasy',
+            refX: '50%',
+            refY: '100%',
+            refY2: 10,
+            fontSize: 14,
+            fill: '#333333'
+        }
+    }
+}, {
+    markup: [],
+    // markup: [{
+    //     tagName: 'path',
+    //     selector: 'body'
+    // }, {
+    //     tagName: 'path',
+    //     selector: 'border'
+    // }, {
+    //     tagName: 'text',
+    //     selector: 'label'
+    // }]
+}, {
+    attributes: {
+        rough: {
+            set: function(opt, bbox, node, attrs) {
+                var rOpt = {
+                    hachureAngle: opt.hachureAngle,
+                    hachureGap: opt.hachureGap,
+                    fillStyle: opt.fillStyle
+                };
+                if (attrs.stroke) rOpt.fill = attrs.stroke;
+                var cache = this.nodeCache(node);
+                var d;
+                if (cache.rough) {
+                    d = cache.rough.d;
+                } else {
+                    var shape;
+                    switch (opt.type) {
+                        case 'ellipse':
+                            shape = r.generator.ellipse(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2, bbox.width, bbox.height, rOpt);
+                            break;
+                        case 'rectangle':
+                        default:
+                            shape = r.generator.rectangle(bbox.x, bbox.y, bbox.width, bbox.height, rOpt);
+                            break;
+                    }
+                    var sets = shape.sets;
+                    d = r.opsToPath(sets[opt.index]);
+                    cache.rough = { d: d };
+                }
+                node.setAttribute('d', d);
+            }
+        },
+        rough2: {
+            set: function(opt, bbox, node, attrs) {
+                var shape;
+                switch (opt.type) {
+                    case 'ellipse':
+                        shape = r.ellipse(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2, bbox.width, bbox.height, opt);
+                        break;
+                    case 'rectangle':
+                    default:
+                        shape = r.rectangle(bbox.x, bbox.y, bbox.width, bbox.height, opt);
+                        break;
+                }
+                V(node).empty().append(shape);
+            }
+        }
+    }
+});
+
+var r1 = new RoughRectangle();
+r1.resize(100, 100);
+r1.position(50, 50);
+r1.addTo(graph);
+
+var r2 = new RoughRectangle({
+    attrs: {
+        body: {
+            rough: {
+                hachureAngle: 20,
+                hachureGap: 6,
+                fillStyle: 'zigzag',
+                type: 'ellipse'
+            },
+            stroke: 'red'
+        },
+        border: {
+            rough: {
+                type: 'ellipse'
+            }
+        }
+    }
+});
+r2.resize(100, 100);
+r2.position(300, 300);
+r2.addTo(graph);
+
+
+var RoughLink = joint.dia.Link.define('rough.Link', {
+    attrs: {
+        line: {
+            roughConnection: true,
+            stroke: '#333333',
+            strokeWidth: 2,
+            strokeLinejoin: 'round',
+            targetMarker: {
+                'type': 'path',
+                'd': 'M 10 -5 0 0 10 5 z'
+            }
+        },
+        wrapper: {
+            connection: true,
+            strokeWidth: 10,
+            strokeLinejoin: 'round'
+        }
+    }
+}, {
+    markup: [{
+        tagName: 'path',
+        selector: 'wrapper',
+        attributes: {
+            'fill': 'none',
+            'cursor': 'pointer',
+            'stroke': 'transparent',
+            'stroke-linecap': 'round'
+        }
+    }, {
+        tagName: 'path',
+        selector: 'line',
+        attributes: {
+            'fill': 'none',
+            'pointer-events': 'none'
+        }
+    }]
+}, {
+    attributes: {
+        roughConnection: {
+            set: function() {
+                var d = this.getSerializedConnection();
+                d = r.opsToPath(r.generator.path(d, { bowing: 1 }).sets[0]);
+                return { d: d };
+            }
+        }
+    }
+});
+
+var rl2 = new RoughLink();
+rl2.source(r2, { selector: 'border' });
+rl2.target(r1, { selector: 'border' });
+rl2.addTo(graph);
