@@ -183,6 +183,10 @@ function contextMarker(context) {
 
 const attributesNS = {
 
+    bindings: {
+
+    },
+
     xlinkHref: {
         set: 'xlink:href'
     },

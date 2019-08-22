@@ -19,6 +19,8 @@ import { Point, Rect } from '../g/index.mjs';
 import V from '../V/index.mjs';
 import $ from 'jquery';
 
+const BINDINGS = 'bindings';
+
 // CellView base view and controller.
 // --------------------------------------------
 
@@ -143,13 +145,22 @@ export const CellView = View.extend({
     },
 
     onAttributesChange: function(model, opt) {
-        var flag = model.getChangeFlag(this._presentationAttributes);
+        const { _presentationAttributes, dependencies, paper } = this;
+        let flag = model.getChangeFlag(_presentationAttributes);
+        const dependenciesLength = dependencies.length;
+        if (dependenciesLength > 0) {
+            const updateFlag = this.getFlag('UPDATE');
+            const depsAttributes = {};
+            for (let i = 0; i < dependenciesLength; i++) {
+                depsAttributes[dependencies[i]] = updateFlag;
+            }
+            flag |= model.getChangeFlag(depsAttributes);
+        }
         if (opt.updateHandled || !flag) return;
         if (opt.dirty && this.hasFlag(flag, 'UPDATE')) flag |= this.getFlag('RENDER');
         // TODO: tool changes does not need to be sync
         // Fix Segments tools
         if (opt.tool) opt.async = false;
-        var paper = this.paper;
         if (paper) paper.requestViewUpdate(this, flag, this.UPDATE_PRIORITY, opt);
     },
 
@@ -423,6 +434,19 @@ export const CellView = View.extend({
         var attrName, attrVal, def, i, n;
         var normalAttrs, setAttrs, positionAttrs, offsetAttrs;
         var relatives = [];
+        var dependenciesAttrs = [];
+        if (attrs.hasOwnProperty(BINDINGS)) {
+            var bindings = attrs[BINDINGS];
+            if (isObject(bindings)) {
+                attrs = Object.assign({}, attrs);
+                for (attrName in bindings) {
+                    if (!bindings.hasOwnProperty(attrName)) continue;
+                    var path = bindings[attrName];
+                    dependenciesAttrs.push(path);
+                    attrs[attrName] = this.model.prop(path);
+                }
+            }
+        }
         // divide the attributes between normal and special
         for (attrName in attrs) {
             if (!attrs.hasOwnProperty(attrName)) continue;
@@ -467,7 +491,8 @@ export const CellView = View.extend({
             normal: normalAttrs,
             set: setAttrs,
             position: positionAttrs,
-            offset: offsetAttrs
+            offset: offsetAttrs,
+            dependencies: dependenciesAttrs
         };
     },
 
@@ -591,6 +616,7 @@ export const CellView = View.extend({
 
     cleanNodesCache: function() {
         this.metrics = {};
+        this.dependencies = [];
     },
 
     nodeCache: function(magnet) {
@@ -738,6 +764,9 @@ export const CellView = View.extend({
             nodeAttrs = nodeData.attributes;
             node = nodeData.node;
             processedAttrs = this.processNodeAttributes(node, nodeAttrs);
+
+            var dependencies = this.dependencies;
+            if (dependencies) dependencies.push(...processedAttrs.dependencies);
 
             if (!processedAttrs.set && !processedAttrs.position && !processedAttrs.offset) {
                 // Set all the normal attributes right on the SVG/HTML element.
