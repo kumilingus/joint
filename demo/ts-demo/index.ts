@@ -1,6 +1,6 @@
-import * as joint from './vendor/joint';
+import * as joint from 'jointjs';
 import './custom';
-import {V, g} from './vendor/joint';
+import { V, g } from 'jointjs';
 import * as $ from 'jquery';
 import { MyShape } from './shape';
 

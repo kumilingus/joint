@@ -1,7 +1,7 @@
-import * as joint from './vendor/joint';
+import * as joint from 'jointjs';
 
 // extend joint.shapes namespace
-declare module './vendor/joint' {
+declare module 'jointjs' {
     namespace shapes {
         namespace app {
             class CustomRect extends joint.shapes.standard.Rectangle {

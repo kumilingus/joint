@@ -1,4 +1,4 @@
-import { shapes, dia, util } from './vendor/joint';
+import { shapes, dia, util } from 'jointjs';
 
 export class MyShape extends dia.Element {
 
