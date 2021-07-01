@@ -1,5 +1,5 @@
 import { config } from '../config/index.mjs';
-import { assign, isFunction, toArray } from '../util/index.mjs';
+import { assign, isFunction, toArray, pick } from '../util/index.mjs';
 import { CellView } from './CellView.mjs';
 import { Cell } from './Cell.mjs';
 import V from '../V/index.mjs';
@@ -501,10 +501,9 @@ export const ElementView = CellView.extend({
                 break;
             }
             case 'revert': {
-                const { initialParentId, initialPosition } = data;
-                if (initialPosition) {
-                    const { x, y } = initialPosition;
-                    element.position(x, y, { ui: true });
+                const { initialParentId, initialAttributes } = data;
+                if (initialAttributes) {
+                    element.set(initialAttributes, { ui: true });
                 }
                 const parent = paper.model.getCell(initialParentId);
                 if (parent) {
@@ -689,10 +688,10 @@ export const ElementView = CellView.extend({
             delegatedView: view
         });
 
-        const position = view.model.position();
+        const { model } = view;
         view.eventData(evt, {
-            initialPosition: position,
-            pointerOffset: position.difference(x, y),
+            initialAttributes: pick(model.attributes, ['z', 'position']),
+            pointerOffset: model.position().difference(x, y),
             restrictedArea: this.paper.getRestrictedArea(view, x, y)
         });
     },
