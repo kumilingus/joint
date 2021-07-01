@@ -119,14 +119,18 @@ QUnit.module('embedding', function(hooks) {
         assert.deepEqual(r2.position().toJSON(), newPosition1);
 
         // Try To Unembed (Invalid)
-        var z = -10;
         unembeddingIsValid = false;
-        r1.embed(r2.set('z', z));
+        var z = -10;
+        r2.set('z', z);
+        r1.embed(r2);
         var newPosition2 = { x: 600, y: 601 };
 
         evt = { target: paper.el };
         v2.pointerdown(evt, newPosition1.x, newPosition1.y);
         v2.pointermove(evt, newPosition2.x, newPosition2.y);
+
+        assert.notEqual(r2.get('z'), z);
+
         v2.pointerup(evt, newPosition2.x, newPosition2.y);
 
         assert.ok(validateUnembeddingSpy.calledTwice);
@@ -137,6 +141,7 @@ QUnit.module('embedding', function(hooks) {
         assert.equal(r2.parent(), r1.id);
         assert.deepEqual(r2.position().toJSON(), newPosition1); // not newPosition2
         assert.equal(r2.get('z'), z);
+
         // Try to Unembedded (And remove when invalid)
         assert.ok(graph.getCell(r2.id));
         evt = { target: paper.el };
