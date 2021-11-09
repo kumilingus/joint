@@ -1753,6 +1753,27 @@ export const Paper = View.extend({
         return this.clientToLocalPoint(x, y).snapToGrid(this.options.gridSize);
     },
 
+
+    getGridSizes(evt, view) {
+        const { gridSize } = this.options;
+        const grid = (typeof gridSize === 'function')
+            ? gridSize.call(this, evt, view)
+            : gridSize;
+        let gridX, gridY;
+        if (Number.isFinite(grid)) {
+            gridX = gridY = grid;
+        } else if (grid) {
+            gridX = grid.gridX;
+            gridY = grid.gridY;
+        }
+        return [gridX || 1, gridY || 1];
+    },
+
+    getGridPointFromEvent: function(evt, view = null) {
+        const [gridX, gridY] = this.getGridSizes(evt, view);
+        return this.clientToLocalPoint(evt.clientX, evt.clientY).snapToGrid(gridX, gridY);
+    },
+
     localToPaperPoint: function(x, y) {
         // allow `x` to be a point and `y` undefined
         var localPoint = new Point(x, y);
@@ -1981,7 +2002,7 @@ export const Paper = View.extend({
         var view = this.findView(evt.target);
         if (this.guard(evt, view)) return;
 
-        var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
+        const localPoint = this.getGridPointFromEvent(evt, view);
 
         if (view) {
             view.pointerdblclick(evt, localPoint.x, localPoint.y);
@@ -2004,7 +2025,7 @@ export const Paper = View.extend({
             var view = this.findView(evt.target);
             if (this.guard(evt, view)) return;
 
-            var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
+            const localPoint = this.getGridPointFromEvent(evt, view);
 
             if (view) {
                 view.pointerclick(evt, localPoint.x, localPoint.y);
@@ -2024,7 +2045,7 @@ export const Paper = View.extend({
         var view = this.findView(evt.target);
         if (this.guard(evt, view)) return;
 
-        var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
+        const localPoint = this.getGridPointFromEvent(evt, view);
 
         if (view) {
             view.contextmenu(evt, localPoint.x, localPoint.y);
@@ -2044,7 +2065,7 @@ export const Paper = View.extend({
         var view = this.findView(evt.target);
         if (this.guard(evt, view)) return;
 
-        var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
+        const localPoint = this.getGridPointFromEvent(evt, view);
 
         if (view) {
 
@@ -2072,9 +2093,8 @@ export const Paper = View.extend({
 
         evt = normalizeEvent(evt);
 
-        var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
-
-        var view = data.sourceView;
+        const view = data.sourceView;
+        const localPoint = this.getGridPointFromEvent(evt, view);
         if (view) {
             view.pointermove(evt, localPoint.x, localPoint.y);
         } else {
@@ -2090,9 +2110,8 @@ export const Paper = View.extend({
 
         var normalizedEvt = normalizeEvent(evt);
 
-        var localPoint = this.snapToGrid(normalizedEvt.clientX, normalizedEvt.clientY);
-
-        var view = this.eventData(evt).sourceView;
+        const view = this.eventData(evt).sourceView;
+        const localPoint = this.getGridPointFromEvent(normalizedEvt, view);
         if (view) {
             view.pointerup(normalizedEvt, localPoint.x, localPoint.y);
         } else {
@@ -2183,7 +2202,8 @@ export const Paper = View.extend({
         if (this.guard(evt, view)) return;
 
         var originalEvent = evt.originalEvent;
-        var localPoint = this.snapToGrid(originalEvent.clientX, originalEvent.clientY);
+        const localPoint = this.getGridPointFromEvent(originalEvent, view);
+
         var delta = Math.max(-1, Math.min(1, (originalEvent.wheelDelta || -originalEvent.detail)));
 
         if (view) {
@@ -2205,7 +2225,7 @@ export const Paper = View.extend({
                 evt = normalizeEvent(evt);
                 if (this.guard(evt, view)) return;
 
-                var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
+                const localPoint = this.getGridPointFromEvent(evt, view);
                 view.onevent(evt, eventName, localPoint.x, localPoint.y);
             }
         }
@@ -2220,7 +2240,7 @@ export const Paper = View.extend({
             if (view) {
                 evt = normalizeEvent(evt);
                 if (this.guard(evt, view)) return;
-                var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
+                const localPoint = this.getGridPointFromEvent(evt, view);
                 handler.call(this, view, evt, magnetNode, localPoint.x, localPoint.y);
             }
         }
@@ -2258,14 +2278,14 @@ export const Paper = View.extend({
             evt = normalizeEvent(evt);
             if (this.guard(evt, view)) return;
 
-            var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
+            const localPoint = this.getGridPointFromEvent(evt, view);
             view.onlabel(evt, localPoint.x, localPoint.y);
         }
     },
 
-    getPointerArgs(evt) {
+    getPointerArgs(evt, view) {
         const normalizedEvt = normalizeEvent(evt);
-        const { x, y } = this.snapToGrid(normalizedEvt.clientX, normalizedEvt.clientY);
+        const { x, y } = this.getGridPointFromEvent(normalizedEvt, view);
         return [normalizedEvt, x, y];
     },
 

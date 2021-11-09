@@ -200,12 +200,12 @@ var Vertices = ToolView.extend({
         this.focus();
         const { relatedView, options } = this;
         relatedView.model.startBatch('vertex-move', { ui: true, tool: this.cid });
-        if (!options.stopPropagation) relatedView.notifyPointerdown(...relatedView.paper.getPointerArgs(evt));
+        if (!options.stopPropagation) relatedView.notifyPointerdown(...relatedView.paper.getPointerArgs(evt, relatedView));
     },
     onHandleChanging: function(handle, evt) {
         const { options, relatedView: linkView } = this;
         var index = handle.options.index;
-        var [normalizedEvent, x, y] = linkView.paper.getPointerArgs(evt);
+        var [normalizedEvent, x, y] = linkView.paper.getPointerArgs(evt, linkView);
         var vertex = { x, y };
         this.snapVertex(vertex, index);
         linkView.model.vertex(index, vertex, { ui: true, tool: this.cid });
@@ -223,7 +223,7 @@ var Vertices = ToolView.extend({
         if (this.eventData(evt).vertexAdded) {
             linkView.model.stopBatch('vertex-add', { ui: true, tool: this.cid });
         }
-        var [normalizedEvt, x, y] = linkView.paper.getPointerArgs(evt);
+        var [normalizedEvt, x, y] = linkView.paper.getPointerArgs(evt, linkView);
         if (!options.stopPropagation) linkView.notifyPointerup(normalizedEvt, x, y);
         linkView.checkMouseleave(normalizedEvt);
     },
@@ -257,8 +257,8 @@ var Vertices = ToolView.extend({
         evt.stopPropagation();
         evt.preventDefault();
         var normalizedEvent = util.normalizeEvent(evt);
-        var vertex = this.paper.snapToGrid(normalizedEvent.clientX, normalizedEvent.clientY).toJSON();
         var relatedView = this.relatedView;
+        var vertex = this.paper.getGridPointFromEvent(normalizedEvent, relatedView).toJSON();
         relatedView.model.startBatch('vertex-add', { ui: true, tool: this.cid });
         var index = relatedView.getVertexIndex(vertex.x, vertex.y);
         this.snapVertex(vertex, index);
@@ -458,7 +458,7 @@ var Segments = ToolView.extend({
         var paper = relatedView.paper;
         var index = handle.options.index - 1;
         var normalizedEvent = util.normalizeEvent(evt);
-        var coords = paper.snapToGrid(normalizedEvent.clientX, normalizedEvent.clientY);
+        var coords = paper.getGridPointFromEvent(normalizedEvent, relatedView);
         var position = this.snapHandle(handle, coords.clone(), data);
         var axis = handle.options.axis;
         var offset = (this.options.snapHandle) ? 0 : (coords[axis] - position[axis]);
@@ -570,7 +570,7 @@ var Segments = ToolView.extend({
             targetAnchorDef: util.clone(model.prop(['target', 'anchor']))
         });
         model.startBatch('segment-move', { ui: true, tool: this.cid });
-        if (!options.stopPropagation) linkView.notifyPointerdown(...paper.getPointerArgs(evt));
+        if (!options.stopPropagation) linkView.notifyPointerdown(...paper.getPointerArgs(evt, linkView));
     },
     onHandleChangeEnd: function(_handle, evt) {
         const { options, relatedView: linkView }= this;
@@ -579,7 +579,7 @@ var Segments = ToolView.extend({
             linkView.removeRedundantLinearVertices({ ui: true, tool: this.cid });
         }
         const normalizedEvent = util.normalizeEvent(evt);
-        const coords = paper.snapToGrid(normalizedEvent.clientX, normalizedEvent.clientY);
+        const coords = paper.getGridPointFromEvent(normalizedEvent, linkView);
         this.render();
         this.blur();
         model.stopBatch('segment-move', { ui: true, tool: this.cid });
@@ -664,17 +664,14 @@ var Arrowhead = ToolView.extend({
         this.el.style.pointerEvents = 'none';
     },
     onPointerMove: function(evt) {
-        var normalizedEvent = util.normalizeEvent(evt);
-        var coords = this.paper.snapToGrid(normalizedEvent.clientX, normalizedEvent.clientY);
-        this.relatedView.pointermove(normalizedEvent, coords.x, coords.y);
+        const { relatedView, paper } = this;
+        relatedView.pointermove(...paper.getPointerArgs(evt, relatedView));
     },
     onPointerUp: function(evt) {
         this.undelegateDocumentEvents();
         var relatedView = this.relatedView;
         var paper = relatedView.paper;
-        var normalizedEvent = util.normalizeEvent(evt);
-        var coords = paper.snapToGrid(normalizedEvent.clientX, normalizedEvent.clientY);
-        relatedView.pointerup(normalizedEvent, coords.x, coords.y);
+        relatedView.pointerup(...paper.getPointerArgs(evt, relatedView));
         paper.delegateEvents();
         this.blur();
         this.el.style.pointerEvents = '';
@@ -882,15 +879,12 @@ const Connect = Button.extend({
     },
     drag: function(evt) {
         const { paper, relatedView } = this;
-        const normalizedEvent = util.normalizeEvent(evt);
-        const { x, y } = paper.snapToGrid(normalizedEvent.clientX, normalizedEvent.clientY);
-        relatedView.dragLink(normalizedEvent, x, y);
+        relatedView.dragLink(...paper.getPointerArgs(evt, relatedView));
+
     },
     dragend: function(evt) {
         const { paper, relatedView } = this;
-        const normalizedEvent = util.normalizeEvent(evt);
-        const { x, y } = paper.snapToGrid(normalizedEvent.clientX, normalizedEvent.clientY);
-        relatedView.dragLinkEnd(normalizedEvent, x, y);
+        relatedView.dragLinkEnd(...paper.getPointerArgs(evt, relatedView));
         this.undelegateDocumentEvents();
         paper.delegateEvents();
         this.blur();

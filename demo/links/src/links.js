@@ -4,6 +4,15 @@ var paper = new joint.dia.Paper({
     width: 800,
     height: 600,
     model: graph,
+    gridSize: (evt, view) => {
+        // console.log('target', paper.findView(evt.target));
+        if (!view) {
+            // console.log('no view', evt.type);
+            return { gridX: 1, gridY: 1 };
+        }
+        // console.log('view', evt.type, evt.target);
+        return evt.shiftKey ? 100 : { gridX: 1, gridOffsetX: 10, gridY: 100, gridOffsetY: 10 };
+    },
     interactive: { linkMove: false },
     defaultConnectionPoint: {
         name: 'boundary',
