@@ -277,8 +277,7 @@ export const Paper = View.extend({
     events: {
         'dblclick': 'pointerdblclick',
         'contextmenu': 'contextmenu',
-        'mousedown': 'pointerdown',
-        'touchstart': 'pointerdown',
+        'pointerdown': 'pointerdown',
         'mouseover': 'mouseover',
         'mouseout': 'mouseout',
         'mouseenter': 'mouseenter',
@@ -2046,7 +2045,7 @@ export const Paper = View.extend({
 
         if (view) {
 
-            evt.preventDefault();
+            // evt.preventDefault();
             view.pointerdown(evt, localPoint.x, localPoint.y);
 
         } else {
@@ -2056,7 +2055,7 @@ export const Paper = View.extend({
             this.trigger('blank:pointerdown', evt, localPoint.x, localPoint.y);
         }
 
-        this.delegateDragEvents(view, evt.data);
+        this.delegateDragEvents(view, evt.data, evt);
     },
 
     pointermove: function(evt) {
@@ -2102,7 +2101,7 @@ export const Paper = View.extend({
         }
 
         evt.stopImmediatePropagation();
-        this.delegateEvents();
+        // this.delegateEvents();
     },
 
     mouseover: function(evt) {
@@ -2267,12 +2266,23 @@ export const Paper = View.extend({
         return [normalizedEvt, x, y];
     },
 
-    delegateDragEvents: function(view, data) {
+    delegateDragEvents: function(view, data, evt) {
 
         data || (data = {});
         this.eventData({ data: data }, { sourceView: view || null, mousemoved: 0 });
-        this.delegateDocumentEvents(null, data);
-        this.undelegateEvents();
+        // this.delegateDocumentEvents(null, data);
+        // this.undelegateEvents();
+
+        view.el.setPointerCapture(evt.pointerId);
+        view.$el.on('pointermove.test', data, (evt) => {
+            this.pointermove(evt);
+        });
+        view.$el.on('pointerup.test', data, (evt) => {
+            this.pointerup(evt);
+            view.el.releasePointerCapture(evt.pointerId);
+            view.$el.off('.test');
+        });
+
     },
 
     // Guard the specified event. If the event is not interesting, guard returns `true`.
