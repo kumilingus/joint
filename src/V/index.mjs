@@ -5,6 +5,24 @@
 // The only Vectorizer dependency is the Geometry library.
 
 import * as g from '../g/index.mjs';
+import {
+    annotateString,
+    findAnnotationsAtIndex,
+    findAnnotationsBetweenIndexes,
+    mergeAttrs,
+    shiftAnnotations,
+    styleToObject
+} from './annotation.mjs';
+import {
+    isObject,
+    isString,
+    isUndefined,
+    isArray
+} from './lang.mjs';
+import {
+    createTextContentNodes,
+    sanitizeText
+} from './text.mjs';
 
 const V = (function() {
 
@@ -369,270 +387,6 @@ const V = (function() {
 
             return outputBBox;
         }
-    };
-
-    // Text() helpers
-
-    function createTextPathNode(attrs, vel) {
-        attrs || (attrs = {});
-        var textPathElement = V('textPath');
-        var d = attrs.d;
-        if (d && attrs['xlink:href'] === undefined) {
-            // If `opt.attrs` is a plain string, consider it to be directly the
-            // SVG path data for the text to go along (this is a shortcut).
-            // Otherwise if it is an object and contains the `d` property, then this is our path.
-            // Wrap the text in the SVG <textPath> element that points
-            // to a path defined by `opt.attrs` inside the `<defs>` element.
-            var linkedPath = V('path').attr('d', d).appendTo(vel.defs());
-            textPathElement.attr('xlink:href', '#' + linkedPath.id);
-        }
-        if (V.isObject(attrs)) {
-            // Set attributes on the `<textPath>`. The most important one
-            // is the `xlink:href` that points to our newly created `<path/>` element in `<defs/>`.
-            // Note that we also allow the following construct:
-            // `t.text('my text', { textPath: { 'xlink:href': '#my-other-path' } })`.
-            // In other words, one can completely skip the auto-creation of the path
-            // and use any other arbitrary path that is in the document.
-            textPathElement.attr(attrs);
-        }
-        return textPathElement.node;
-    }
-
-    function annotateTextLine(lineNode, lineAnnotations, opt) {
-        opt || (opt = {});
-        var includeAnnotationIndices = opt.includeAnnotationIndices;
-        var eol = opt.eol;
-        var lineHeight = opt.lineHeight;
-        var baseSize = opt.baseSize;
-        var maxFontSize = 0;
-        var fontMetrics = {};
-        var lastJ = lineAnnotations.length - 1;
-        for (var j = 0; j <= lastJ; j++) {
-            var annotation = lineAnnotations[j];
-            var fontSize = null;
-            if (V.isObject(annotation)) {
-                var annotationAttrs = annotation.attrs;
-                var vTSpan = V('tspan', annotationAttrs);
-                var tspanNode = vTSpan.node;
-                var t = annotation.t;
-                if (eol && j === lastJ) t += eol;
-                tspanNode.textContent = t;
-                // Per annotation className
-                var annotationClass = annotationAttrs['class'];
-                if (annotationClass) vTSpan.addClass(annotationClass);
-                // If `opt.includeAnnotationIndices` is `true`,
-                // set the list of indices of all the applied annotations
-                // in the `annotations` attribute. This list is a comma
-                // separated list of indices.
-                if (includeAnnotationIndices) vTSpan.attr('annotations', annotation.annotations);
-                // Check for max font size
-                fontSize = parseFloat(annotationAttrs['font-size']);
-                if (!isFinite(fontSize)) fontSize = baseSize;
-                if (fontSize && fontSize > maxFontSize) maxFontSize = fontSize;
-            } else {
-                if (eol && j === lastJ) annotation += eol;
-                tspanNode = document.createTextNode(annotation || ' ');
-                if (baseSize && baseSize > maxFontSize) maxFontSize = baseSize;
-            }
-            lineNode.appendChild(tspanNode);
-        }
-
-        if (maxFontSize) fontMetrics.maxFontSize = maxFontSize;
-        if (lineHeight) {
-            fontMetrics.lineHeight = lineHeight;
-        } else if (maxFontSize) {
-            fontMetrics.lineHeight = (maxFontSize * 1.2);
-        }
-        return fontMetrics;
-    }
-
-    var emRegex = /em$/;
-
-    function convertEmToPx(em, fontSize) {
-        var numerical = parseFloat(em);
-        if (emRegex.test(em)) return numerical * fontSize;
-        return numerical;
-    }
-
-    function calculateDY(alignment, linesMetrics, baseSizePx, lineHeight) {
-        if (!Array.isArray(linesMetrics)) return 0;
-        var n = linesMetrics.length;
-        if (!n) return 0;
-        var lineMetrics = linesMetrics[0];
-        var flMaxFont = convertEmToPx(lineMetrics.maxFontSize, baseSizePx) || baseSizePx;
-        var rLineHeights = 0;
-        var lineHeightPx = convertEmToPx(lineHeight, baseSizePx);
-        for (var i = 1; i < n; i++) {
-            lineMetrics = linesMetrics[i];
-            var iLineHeight = convertEmToPx(lineMetrics.lineHeight, baseSizePx) || lineHeightPx;
-            rLineHeights += iLineHeight;
-        }
-        var llMaxFont = convertEmToPx(lineMetrics.maxFontSize, baseSizePx) || baseSizePx;
-        var dy;
-        switch (alignment) {
-            case 'middle':
-                dy = (flMaxFont / 2) - (0.15 * llMaxFont) - (rLineHeights / 2);
-                break;
-            case 'bottom':
-                dy = -(0.25 * llMaxFont) - rLineHeights;
-                break;
-            default:
-            case 'top':
-                dy = (0.8 * flMaxFont);
-                break;
-        }
-        return dy;
-    }
-
-    VPrototype.text = function(content, opt) {
-
-        if (content && typeof content !== 'string') throw new Error('Vectorizer: text() expects the first argument to be a string.');
-
-        // Replace all spaces with the Unicode No-break space (http://www.fileformat.info/info/unicode/char/a0/index.htm).
-        // IE would otherwise collapse all spaces into one.
-        content = V.sanitizeText(content);
-        opt || (opt = {});
-        // Should we allow the text to be selected?
-        var displayEmpty = opt.displayEmpty;
-        // End of Line character
-        var eol = opt.eol;
-        // Text along path
-        var textPath = opt.textPath;
-        // Vertical shift
-        var verticalAnchor = opt.textVerticalAnchor;
-        var namedVerticalAnchor = (verticalAnchor === 'middle' || verticalAnchor === 'bottom' || verticalAnchor === 'top');
-        // Horizontal shift applied to all the lines but the first.
-        var x = opt.x;
-        if (x === undefined) x = this.attr('x') || 0;
-        // Annotations
-        var iai = opt.includeAnnotationIndices;
-        var annotations = opt.annotations;
-        if (annotations && !V.isArray(annotations)) annotations = [annotations];
-        // Shift all the <tspan> but first by one line (`1em`)
-        var defaultLineHeight = opt.lineHeight;
-        var autoLineHeight = (defaultLineHeight === 'auto');
-        var lineHeight = (autoLineHeight) ? '1.5em' : (defaultLineHeight || '1em');
-        // Clearing the element
-        this.empty();
-        this.attr({
-            // Preserve spaces. In other words, we do not want consecutive spaces to get collapsed to one.
-            'xml:space': 'preserve',
-            // An empty text gets rendered into the DOM in webkit-based browsers.
-            // In order to unify this behaviour across all browsers
-            // we rather hide the text element when it's empty.
-            'display': (content || displayEmpty) ? null : 'none'
-        });
-
-        // Set default font-size if none
-        var fontSize = parseFloat(this.attr('font-size'));
-        if (!fontSize) {
-            fontSize = 16;
-            if (namedVerticalAnchor || annotations) this.attr('font-size', fontSize);
-        }
-
-        var doc = document;
-        var containerNode;
-        if (textPath) {
-            // Now all the `<tspan>`s will be inside the `<textPath>`.
-            if (typeof textPath === 'string') textPath = { d: textPath };
-            containerNode = createTextPathNode(textPath, this);
-        } else {
-            containerNode = doc.createDocumentFragment();
-        }
-        var offset = 0;
-        var lines = content.split('\n');
-        var linesMetrics = [];
-        var annotatedY;
-        for (var i = 0, lastI = lines.length - 1; i <= lastI; i++) {
-            var dy = lineHeight;
-            var lineClassName = 'v-line';
-            var lineNode = doc.createElementNS(ns.svg, 'tspan');
-            var line = lines[i];
-            var lineMetrics;
-            if (line) {
-                if (annotations) {
-                    // Find the *compacted* annotations for this line.
-                    var lineAnnotations = V.annotateString(line, annotations, {
-                        offset: -offset,
-                        includeAnnotationIndices: iai
-                    });
-                    lineMetrics = annotateTextLine(lineNode, lineAnnotations, {
-                        includeAnnotationIndices: iai,
-                        eol: (i !== lastI && eol),
-                        lineHeight: (autoLineHeight) ? null : lineHeight,
-                        baseSize: fontSize
-                    });
-                    // Get the line height based on the biggest font size in the annotations for this line.
-                    var iLineHeight = lineMetrics.lineHeight;
-                    if (iLineHeight && autoLineHeight && i !== 0) dy = iLineHeight;
-                    if (i === 0) annotatedY = lineMetrics.maxFontSize * 0.8;
-                } else {
-                    if (eol && i !== lastI) line += eol;
-                    lineNode.textContent = line;
-                }
-            } else {
-                // Make sure the textContent is never empty. If it is, add a dummy
-                // character and make it invisible, making the following lines correctly
-                // relatively positioned. `dy=1em` won't work with empty lines otherwise.
-                lineNode.textContent = '-';
-                lineClassName += ' v-empty-line';
-                // 'opacity' needs to be specified with fill, stroke. Opacity without specification
-                // is not applied in Firefox
-                var lineNodeStyle = lineNode.style;
-                lineNodeStyle.fillOpacity = 0;
-                lineNodeStyle.strokeOpacity = 0;
-                if (annotations) lineMetrics = {};
-            }
-            if (lineMetrics) linesMetrics.push(lineMetrics);
-            if (i > 0) lineNode.setAttribute('dy', dy);
-            // Firefox requires 'x' to be set on the first line when inside a text path
-            if (i > 0 || textPath) lineNode.setAttribute('x', x);
-            lineNode.className.baseVal = lineClassName;
-            containerNode.appendChild(lineNode);
-            offset += line.length + 1;      // + 1 = newline character.
-        }
-        // Y Alignment calculation
-        if (namedVerticalAnchor) {
-            if (annotations) {
-                dy = calculateDY(verticalAnchor, linesMetrics, fontSize, lineHeight);
-            } else if (verticalAnchor === 'top') {
-                // A shortcut for top alignment. It does not depend on font-size nor line-height
-                dy = '0.8em';
-            } else {
-                var rh; // remaining height
-                if (lastI > 0) {
-                    rh = parseFloat(lineHeight) || 1;
-                    rh *= lastI;
-                    if (!emRegex.test(lineHeight)) rh /= fontSize;
-                } else {
-                    // Single-line text
-                    rh = 0;
-                }
-                switch (verticalAnchor) {
-                    case 'middle':
-                        dy = (0.3 - (rh / 2)) + 'em';
-                        break;
-                    case 'bottom':
-                        dy = (-rh - 0.3) + 'em';
-                        break;
-                }
-            }
-        } else {
-            if (verticalAnchor === 0) {
-                dy = '0em';
-            } else if (verticalAnchor) {
-                dy = verticalAnchor;
-            } else {
-                // No vertical anchor is defined
-                dy = 0;
-                // Backwards compatibility - we change the `y` attribute instead of `dy`.
-                if (this.attr('y') === null) this.attr('y', annotatedY || '0.8em');
-            }
-        }
-        containerNode.firstChild.setAttribute('dy', dy);
-        // Appending lines to the element.
-        this.append(containerNode);
-        return this;
     };
 
     /**
@@ -1311,32 +1065,13 @@ const V = (function() {
         return node.id || (node.id = V.uniqueId());
     };
 
-    // Replace all spaces with the Unicode No-break space (http://www.fileformat.info/info/unicode/char/a0/index.htm).
-    // IE would otherwise collapse all spaces into one. This is used in the text() method but it is
-    // also exposed so that the programmer can use it in case he needs to. This is useful e.g. in tests
-    // when you want to compare the actual DOM text content without having to add the unicode character in
-    // the place of all spaces.
-    V.sanitizeText = function(text) {
+    V.isUndefined = isUndefined;
 
-        return (text || '').replace(/ /g, '\u00A0');
-    };
+    V.isString = isString;
 
-    V.isUndefined = function(value) {
+    V.isObject = isObject;
 
-        return typeof value === 'undefined';
-    };
-
-    V.isString = function(value) {
-
-        return typeof value === 'string';
-    };
-
-    V.isObject = function(value) {
-
-        return value && (typeof value === 'object');
-    };
-
-    V.isArray = Array.isArray;
+    V.isArray = isArray;
 
     V.parseXML = function(data, opt) {
 
@@ -1706,19 +1441,6 @@ const V = (function() {
         return new g.Polyline(outPoints);
     };
 
-    // Convert a style represented as string (e.g. `'fill="blue"; stroke="red"'`) to
-    // an object (`{ fill: 'blue', stroke: 'red' }`).
-    V.styleToObject = function(styleString) {
-        var ret = {};
-        var styles = styleString.split(';');
-        for (var i = 0; i < styles.length; i++) {
-            var style = styles[i];
-            var pair = style.split('=');
-            ret[pair[0].trim()] = pair[1].trim();
-        }
-        return ret;
-    };
-
     // Inspired by d3.js https://github.com/mbostock/d3/blob/master/src/svg/arc.js
     V.createSlicePathData = function(innerRadius, outerRadius, startAngle, endAngle) {
 
@@ -1757,168 +1479,6 @@ const V = (function() {
                 + 'A' + r1 + ',' + r1 + ' 0 ' + df + ',1 ' + r1 * c1 + ',' + r1 * s1
                 + 'L0,0'
                 + 'Z');
-    };
-
-    // Merge attributes from object `b` with attributes in object `a`.
-    // Note that this modifies the object `a`.
-    // Also important to note that attributes are merged but CSS classes are concatenated.
-    V.mergeAttrs = function(a, b) {
-
-        for (var attr in b) {
-
-            if (attr === 'class') {
-                // Concatenate classes.
-                a[attr] = a[attr] ? a[attr] + ' ' + b[attr] : b[attr];
-            } else if (attr === 'style') {
-                // `style` attribute can be an object.
-                if (V.isObject(a[attr]) && V.isObject(b[attr])) {
-                    // `style` stored in `a` is an object.
-                    a[attr] = V.mergeAttrs(a[attr], b[attr]);
-                } else if (V.isObject(a[attr])) {
-                    // `style` in `a` is an object but it's a string in `b`.
-                    // Convert the style represented as a string to an object in `b`.
-                    a[attr] = V.mergeAttrs(a[attr], V.styleToObject(b[attr]));
-                } else if (V.isObject(b[attr])) {
-                    // `style` in `a` is a string, in `b` it's an object.
-                    a[attr] = V.mergeAttrs(V.styleToObject(a[attr]), b[attr]);
-                } else {
-                    // Both styles are strings.
-                    a[attr] = V.mergeAttrs(V.styleToObject(a[attr]), V.styleToObject(b[attr]));
-                }
-            } else {
-                a[attr] = b[attr];
-            }
-        }
-
-        return a;
-    };
-
-    V.annotateString = function(t, annotations, opt) {
-
-        annotations = annotations || [];
-        opt = opt || {};
-
-        var offset = opt.offset || 0;
-        var compacted = [];
-        var batch;
-        var ret = [];
-        var item;
-        var prev;
-
-        for (var i = 0; i < t.length; i++) {
-
-            item = ret[i] = t[i];
-
-            for (var j = 0; j < annotations.length; j++) {
-
-                var annotation = annotations[j];
-                var start = annotation.start + offset;
-                var end = annotation.end + offset;
-
-                if (i >= start && i < end) {
-                    // Annotation applies.
-                    if (V.isObject(item)) {
-                        // There is more than one annotation to be applied => Merge attributes.
-                        item.attrs = V.mergeAttrs(V.mergeAttrs({}, item.attrs), annotation.attrs);
-                    } else {
-                        item = ret[i] = { t: t[i], attrs: annotation.attrs };
-                    }
-                    if (opt.includeAnnotationIndices) {
-                        (item.annotations || (item.annotations = [])).push(j);
-                    }
-                }
-            }
-
-            prev = ret[i - 1];
-
-            if (!prev) {
-
-                batch = item;
-
-            } else if (V.isObject(item) && V.isObject(prev)) {
-                // Both previous item and the current one are annotations. If the attributes
-                // didn't change, merge the text.
-                if (JSON.stringify(item.attrs) === JSON.stringify(prev.attrs)) {
-                    batch.t += item.t;
-                } else {
-                    compacted.push(batch);
-                    batch = item;
-                }
-
-            } else if (V.isObject(item)) {
-                // Previous item was a string, current item is an annotation.
-                compacted.push(batch);
-                batch = item;
-
-            } else if (V.isObject(prev)) {
-                // Previous item was an annotation, current item is a string.
-                compacted.push(batch);
-                batch = item;
-
-            } else {
-                // Both previous and current item are strings.
-                batch = (batch || '') + item;
-            }
-        }
-
-        if (batch) {
-            compacted.push(batch);
-        }
-
-        return compacted;
-    };
-
-    V.findAnnotationsAtIndex = function(annotations, index) {
-
-        var found = [];
-
-        if (annotations) {
-
-            annotations.forEach(function(annotation) {
-
-                if (annotation.start < index && index <= annotation.end) {
-                    found.push(annotation);
-                }
-            });
-        }
-
-        return found;
-    };
-
-    V.findAnnotationsBetweenIndexes = function(annotations, start, end) {
-
-        var found = [];
-
-        if (annotations) {
-
-            annotations.forEach(function(annotation) {
-
-                if ((start >= annotation.start && start < annotation.end) || (end > annotation.start && end <= annotation.end) || (annotation.start >= start && annotation.end < end)) {
-                    found.push(annotation);
-                }
-            });
-        }
-
-        return found;
-    };
-
-    // Shift all the text annotations after character `index` by `offset` positions.
-    V.shiftAnnotations = function(annotations, index, offset) {
-
-        if (annotations) {
-
-            annotations.forEach(function(annotation) {
-
-                if (annotation.start < index && annotation.end >= index) {
-                    annotation.end += offset;
-                } else if (annotation.start >= index) {
-                    annotation.start += offset;
-                    annotation.end += offset;
-                }
-            });
-        }
-
-        return annotations;
     };
 
     V.convertLineToPathData = function(line) {
@@ -2231,7 +1791,7 @@ const V = (function() {
 
         function pathToAbsolute(pathArray) {
 
-            if (!Array.isArray(pathArray) || !Array.isArray(pathArray && pathArray[0])) { // rough assumption
+            if (!V.isArray(pathArray) || !V.isArray(pathArray && pathArray[0])) { // rough assumption
                 pathArray = parsePathString(pathArray);
             }
 
@@ -2477,6 +2037,22 @@ const V = (function() {
     V.namespace = ns;
 
     V.g = g;
+
+    // Annotations
+    V.styleToObject = styleToObject;
+    V.mergeAttrs = mergeAttrs;
+    V.annotateString = annotateString;
+    V.findAnnotationsAtIndex = findAnnotationsAtIndex;
+    V.findAnnotationsBetweenIndexes = findAnnotationsBetweenIndexes;
+    V.shiftAnnotations = shiftAnnotations;
+
+    // Text
+    V.sanitizeText = sanitizeText;
+    VPrototype.text = function(content, options) {
+        if (content && typeof content !== 'string') throw new Error('Vectorizer: text() expects the first argument to be a string.');
+        createTextContentNodes(this, content, options, V);
+        return this;
+    };
 
     return V;
 
