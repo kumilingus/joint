@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedParameters": false,
+    "strictNullChecks": false
+  },
+  "include": [
+    "src"
+  ]
+}

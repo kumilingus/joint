@@ -221,7 +221,7 @@ export const CellView = View.extend({
 
         // Maintaining backwards compatibility
         // e.g. `circle:first` would fail with querySelector() call
-        if (config.useCSSSelectors) return $(root).find(selector).toArray();
+        if (config.useCSSSelectors) return Array.from($(root).find(selector));
 
         return [];
     },
@@ -392,7 +392,7 @@ export const CellView = View.extend({
         var selector;
 
         if (el === this.el) {
-            if (typeof prevSelector === 'string') selector = '> ' + prevSelector;
+            if (typeof prevSelector === 'string') selector = ':scope > ' + prevSelector;
             return selector;
         }
 

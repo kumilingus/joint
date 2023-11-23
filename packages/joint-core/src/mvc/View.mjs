@@ -3,6 +3,7 @@ import * as util from '../util/index.mjs';
 import V from '../V/index.mjs';
 import { ViewBase } from './ViewBase.mjs';
 import { config } from '../config/index.mjs';
+import { Event } from './Event.mjs';
 
 export const views = {};
 
@@ -28,6 +29,17 @@ export const View = ViewBase.extend({
         this.options = util.assign({}, this.options, options);
 
         ViewBase.call(this, options);
+    },
+
+    $: function(selector) {
+        let $el;
+        if (util.isString(selector)) {
+            $el = this.$el.find(selector);
+        } else {
+            const el = $(selector)[0];
+            $el = (this.el === el || this.el.contains(el)) ? $(selector) : $();
+        }
+        return $el;
     },
 
     initialize: function() {
@@ -229,15 +241,32 @@ export const View = ViewBase.extend({
         return '.joint-event-ns-' + this.cid;
     },
 
+    // Add a single event listener to the view's element (or a child element
+    // using `selector`). This only works for delegate-able events: not `focus`,
+    // `blur`, and not `change`, `submit`, and `reset` in Internet Explorer.
+    delegate: function(eventName, selector, listener) {
+        this.$el.on(eventName + '.delegateEvents' + this.cid, selector, (nativeEvent, ...args) => {
+            const evt = new Event(nativeEvent);
+            return listener.call(this, evt, ...args);
+        });
+        return this;
+    },
+
+
     delegateElementEvents: function(element, events, data) {
         if (!events) return this;
         data || (data = {});
-        var eventNS = this.getEventNamespace();
-        for (var eventName in events) {
-            var method = events[eventName];
+        const eventNS = this.getEventNamespace();
+        for (let eventName in events) {
+            let method = events[eventName];
             if (typeof method !== 'function') method = this[method];
             if (!method) continue;
-            $(element).on(eventName + eventNS, data, method.bind(this));
+            $(element).on(eventName + eventNS, (nativeEvent, ...args) => {
+                const evt = new Event(nativeEvent);
+                // Object.defineProperty(evt, 'data',  { writable: true, configurable: true });
+                evt.data = data;
+                return method.call(this, evt, ...args);
+            });
         }
         return this;
     },
@@ -265,6 +294,10 @@ export const View = ViewBase.extend({
             return currentData[key] || {};
         }
         currentData || (currentData = evt.data = {});
+        // if (!currentData) {
+        //     Object.defineProperty(evt, 'data',  { writable: true, configurable: true });
+        //     currentData = evt.data = {};
+        // }
         currentData[key] || (currentData[key] = {});
         util.assign(currentData[key], data);
         return this;
@@ -344,3 +377,11 @@ if ($.event && !(DoubleTapEventName in $.event.special)) {
         }
     };
 }
+
+$.fn.toArray = function() {
+    return this.get();
+};
+
+$.fn.click = function() {
+    return this.trigger('click');
+};

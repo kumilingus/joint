@@ -66,6 +66,7 @@
     "./README.md"
   ],
   "dependencies": {
+    "@joint/dom": "workspace:^",
     "backbone": "~1.4.1",
     "dagre": "~0.8.5",
     "graphlib": "~2.1.8",

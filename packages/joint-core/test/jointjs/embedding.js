@@ -206,7 +206,7 @@ QUnit.module('embedding', function(hooks) {
 
         data = {};
         v2.prepareEmbedding(data);
-        v2.processEmbedding(data, new $.Event(), 100, 101);
+        v2.processEmbedding(data, new joint.mvc.Event(), 100, 101);
         v2.finalizeEmbedding(data);
 
         assert.equal(r2.get('parent'), r1.id, 'parent found by bbox');
@@ -217,7 +217,7 @@ QUnit.module('embedding', function(hooks) {
 
         data = {};
         v2.prepareEmbedding(data);
-        v2.processEmbedding(data, new $.Event(), 100, 101);
+        v2.processEmbedding(data, new joint.mvc.Event(), 100, 101);
         v2.finalizeEmbedding(data);
 
         assert.equal(r2.get('parent'), r1.id, 'parent found by corner');
@@ -228,7 +228,7 @@ QUnit.module('embedding', function(hooks) {
 
         data = {};
         v2.prepareEmbedding(data);
-        v2.processEmbedding(data, new $.Event(), 100, 101);
+        v2.processEmbedding(data, new joint.mvc.Event(), 100, 101);
         v2.finalizeEmbedding(data);
 
         assert.notEqual(r2.get('parent'), r1.id, 'parent not found by origin');
@@ -241,7 +241,7 @@ QUnit.module('embedding', function(hooks) {
 
         data = {};
         v2.prepareEmbedding(data);
-        v2.processEmbedding(data, new $.Event(), 150, 151);
+        v2.processEmbedding(data, new joint.mvc.Event(), 150, 151);
         v2.finalizeEmbedding(data);
 
         assert.equal(r2.get('parent'), r1.id, 'parent not found by origin');
@@ -250,7 +250,7 @@ QUnit.module('embedding', function(hooks) {
 
         data = {};
         v2.prepareEmbedding(data);
-        v2.processEmbedding(data, new $.Event(), 250, 251);
+        v2.processEmbedding(data, new joint.mvc.Event(), 250, 251);
         v2.finalizeEmbedding(data);
 
         assert.notEqual(r2.get('parent'), r1.id, 'parent not found by origin');
@@ -267,12 +267,12 @@ QUnit.module('embedding', function(hooks) {
 
         data = {};
         v2.prepareEmbedding(data);
-        v2.processEmbedding(data, new $.Event(), 100, 101);
+        v2.processEmbedding(data, new joint.mvc.Event(), 100, 101);
         v2.finalizeEmbedding(data);
 
         assert.equal(r2.get('parent'), r1.id, 'parent found by callback');
         assert.ok(spyFindParentBy.calledOnce);
-        assert.ok(spyFindParentBy.calledWithExactly(v2, sinon.match.instanceOf($.Event), 100, 101));
+        assert.ok(spyFindParentBy.calledWithExactly(v2, sinon.match.instanceOf(joint.mvc.Event), 100, 101));
         assert.ok(spyFindParentBy.calledOn(this.graph));
 
         r1.unembed(r2);
@@ -301,7 +301,7 @@ QUnit.module('embedding', function(hooks) {
 
         var data = {};
         v2.prepareEmbedding(data);
-        v2.processEmbedding(data, new $.Event(), 100, 101);
+        v2.processEmbedding(data, new joint.mvc.Event(), 100, 101);
         v2.finalizeEmbedding(data);
 
     });
@@ -325,7 +325,7 @@ QUnit.module('embedding', function(hooks) {
 
         data = {};
         v3.prepareEmbedding(data);
-        v3.processEmbedding(data, new $.Event(), 100, 101);
+        v3.processEmbedding(data, new joint.mvc.Event(), 100, 101);
         v3.finalizeEmbedding(data);
 
         assert.ok(!r3.get('parent'), 'disabled: parent on the bottom not found');
@@ -334,7 +334,7 @@ QUnit.module('embedding', function(hooks) {
 
         data = {};
         v3.prepareEmbedding(data);
-        v3.processEmbedding(data, new $.Event(), 100, 101);
+        v3.processEmbedding(data, new joint.mvc.Event(), 100, 101);
         v3.finalizeEmbedding(data);
 
         assert.equal(r3.get('parent'), r1.id, 'enabled: parent on the bottom found');

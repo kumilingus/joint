@@ -177,7 +177,7 @@ QUnit.module('paper', function(hooks) {
         this.graph.resetCells([r2, r3]);
 
         assert.equal(this.graph.get('cells').length, 2, 'previous cells were removed from the graph after calling graph.resetCells()');
-        assert.ok(!$r1 || !$.contains(this.paper.$el[0], $r1[0]), 'previous cells were removed from the paper after calling graph.resetCells()');
+        assert.ok(!$r1 || !this.paper.el.contains($r1[0]), 'previous cells were removed from the paper after calling graph.resetCells()');
         assert.equal(viewport.find('.not-a-cell').length, 1, 'should not remove non-cell DOM elements from viewport');
     });
 
@@ -1048,7 +1048,7 @@ QUnit.module('paper', function(hooks) {
         // Use guard option to only allow mouse events for left mouse button.
         this.paper.options.guard = function(evt, view) {
 
-            assert.ok(evt instanceof $.Event);
+            assert.ok(evt instanceof joint.mvc.Event);
             assert.equal(view, elementView);
 
             var isMouseEvent = evt.type.substr(0, 'mouse'.length) === 'mouse';
@@ -2389,7 +2389,7 @@ QUnit.module('paper', function(hooks) {
                     assert.ok(spy.getCall(eventIndex).calledWithExactly(
                         eventName,
                         elView,
-                        sinon.match.instanceOf($.Event),
+                        sinon.match.instanceOf(joint.mvc.Event),
                         elRect,
                         localPoint.x,
                         localPoint.y
@@ -2435,7 +2435,7 @@ QUnit.module('paper', function(hooks) {
                     assert.ok(spy.calledWithExactly(
                         eventName,
                         elView,
-                        sinon.match.instanceOf($.Event),
+                        sinon.match.instanceOf(joint.mvc.Event),
                         elRect,
                         localPoint.x,
                         localPoint.y
@@ -2481,7 +2481,7 @@ QUnit.module('paper', function(hooks) {
                     assert.ok(spy.calledWithExactly(
                         eventName,
                         elView,
-                        sinon.match.instanceOf($.Event),
+                        sinon.match.instanceOf(joint.mvc.Event),
                         elRect,
                         localPoint.x,
                         localPoint.y
@@ -2564,7 +2564,7 @@ QUnit.module('paper', function(hooks) {
             assert.ok(spy.calledWithExactly(
                 eventName,
                 elView,
-                sinon.match.instanceOf($.Event),
+                sinon.match.instanceOf(joint.mvc.Event),
                 localPoint.x,
                 localPoint.y
             ));
@@ -2600,7 +2600,7 @@ QUnit.module('paper', function(hooks) {
             assert.ok(spy.getCall(eventOrder.indexOf(eventName)).calledWithExactly(
                 eventName,
                 elView,
-                sinon.match.instanceOf($.Event),
+                sinon.match.instanceOf(joint.mvc.Event),
                 localPoint.x,
                 localPoint.y
             ));
@@ -2695,7 +2695,7 @@ QUnit.module('paper', function(hooks) {
             assert.deepEqual(getEventNames(spy), eventOrder);
             assert.ok(spy.getCall(eventOrder.indexOf(eventName)).calledWithExactly(
                 eventName,
-                sinon.match.instanceOf($.Event),
+                sinon.match.instanceOf(joint.mvc.Event),
                 localPoint.x,
                 localPoint.y
             ));
@@ -2992,7 +2992,7 @@ QUnit.module('paper', function(hooks) {
         assert.ok(spy.calledWithExactly(
             event,
             linkView,
-            sinon.match.instanceOf($.Event),
+            sinon.match.instanceOf(joint.mvc.Event),
             localPoint.x,
             localPoint.y
         ));

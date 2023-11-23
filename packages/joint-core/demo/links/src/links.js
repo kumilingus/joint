@@ -872,3 +872,10 @@ paper.on('myclick:circle', function(linkView, evt) {
     link.transition('attrs/c1/atConnectionRatio', t, transitionOpt);
     link.transition('attrs/c2/atConnectionRatio', t, transitionOpt);
 });
+
+
+paper.on('all', (n) => {
+    if (n === 'render:done') return;
+    if (n.includes('mouse')) return;
+    console.log(n);
+});

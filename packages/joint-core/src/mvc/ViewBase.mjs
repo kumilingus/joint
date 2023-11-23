@@ -2,12 +2,12 @@ import $ from 'jquery';
 
 import { Events } from './Events.mjs';
 import { extend } from './mvcUtils.mjs';
-import { 
+import {
     assign,
-    isFunction, 
-    pick, 
-    result, 
-    uniqueId 
+    isFunction,
+    pick,
+    result,
+    uniqueId
 } from '../util/util.mjs';
 
 // ViewBase

@@ -1,0 +1,22 @@
+{
+  "changelog": {
+    "version": "### [v[version]](https://github.com/fabiospampinato/cash/releases/tag/[version]) ([version_date])\n"
+  },
+  "tag": {
+    "enabled": false,
+    "name": "[version]"
+  },
+  "release": {
+    "github": {
+      "enabled": true,
+      "files": [
+        "**/dist/**"
+      ]
+    }
+  },
+  "scripts": {
+    "prebump": "npm run prepublishOnly",
+    "prerelease": "npm run prepublishOnly",
+    "postrelease": "npm publish"
+  }
+}

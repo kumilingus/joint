@@ -719,7 +719,7 @@ QUnit.module('util', function(hooks) {
 
         QUnit.test('correspondingUseElement', function(assert) {
             var useElement = V('use').node;
-            var event = new $.Event('mouseover', { target: { correspondingUseElement: useElement }});
+            var event = new joint.mvc.Event('mouseover', { target: { correspondingUseElement: useElement }});
             assert.equal(joint.util.normalizeEvent(event).target, useElement);
         });
 

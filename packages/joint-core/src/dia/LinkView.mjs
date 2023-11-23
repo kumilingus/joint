@@ -1,7 +1,7 @@
 import { CellView } from './CellView.mjs';
 import { Link } from './Link.mjs';
 import V from '../V/index.mjs';
-import { addClassNamePrefix, removeClassNamePrefix, merge, template, assign, toArray, isObject, isFunction, clone, isPercentage, result, isEqual } from '../util/index.mjs';
+import { addClassNamePrefix, removeClassNamePrefix, merge, template, assign, toArray, isObject, isFunction, clone, isPercentage, result, isEqual, camelCase } from '../util/index.mjs';
 import { Point, Line, Path, normalizeAngle, Rect, Polyline } from '../g/index.mjs';
 import * as routers from '../routers/index.mjs';
 import * as connectors from '../connectors/index.mjs';
@@ -285,7 +285,7 @@ export const LinkView = CellView.extend({
             if (className) {
                 // Strip the joint class name prefix, if there is one.
                 className = removeClassNamePrefix(className);
-                cache[$.camelCase(className)] = child;
+                cache[camelCase(className)] = child;
             }
         }
         // partial rendering
@@ -1133,7 +1133,7 @@ export const LinkView = CellView.extend({
         if (!this._V.markerArrowheads) return this;
 
         // getting bbox of an element with `display="none"` in IE9 ends up with access violation
-        if ($.css(this._V.markerArrowheads.node, 'display') === 'none') return this;
+        // if ($.css(this._V.markerArrowheads.node, 'display') === 'none') return this;
 
         var sx = this.getConnectionLength() < this.options.shortLinkLength ? .5 : 1;
         this._V.sourceArrowhead.scale(sx);

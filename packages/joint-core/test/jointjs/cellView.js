@@ -631,12 +631,12 @@ QUnit.module('cellView', function(hooks) {
                 assert.equal(cellViewSpy.callCount, 3);
                 assert.ok(paperSpy.alwaysCalledWith(
                     cellView,
-                    sinon.match.instanceOf($.Event),
+                    sinon.match.instanceOf(joint.mvc.Event),
                     sinon.match.number,
                     sinon.match.number
                 ));
                 assert.ok(cellViewSpy.alwaysCalledWith(
-                    sinon.match.instanceOf($.Event),
+                    sinon.match.instanceOf(joint.mvc.Event),
                     sinon.match.number,
                     sinon.match.number
                 ));

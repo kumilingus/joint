@@ -857,7 +857,7 @@ QUnit.module('basic', function(hooks) {
 
         a1.toFront({ deep: true });
 
-        assert.equal(_.uniq(a1View.$el.prevAll('[data-type="basic.Rect"]').toArray().concat([b1View.el, b2View.el])).length, 2, 'a1 element moved after b1, b2 element in the DOM after toFront()');
+        assert.equal(_.uniq(Array.from(a1View.$el.prevAll('[data-type="basic.Rect"]')).concat([b1View.el, b2View.el])).length, 2, 'a1 element moved after b1, b2 element in the DOM after toFront()');
         assert.ok(a4View.$el.prev('[data-type="basic.Rect"]')[0] == a3View.el || a4View.$el.prev('[data-type="basic.Rect"]')[0] == a2View.el, 'and a4 element moved after a3 or a2 element');
         assert.ok(a2View.$el.prev('[data-type="basic.Rect"]')[0] == a1View.el || a3View.$el.prev('[data-type="basic.Rect"]')[0] == a1View.el, 'and a2 or a3 element moved just after a1 element');
 

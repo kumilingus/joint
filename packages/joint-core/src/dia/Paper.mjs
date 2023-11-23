@@ -33,7 +33,7 @@ import {
 } from '../util/index.mjs';
 import { ViewBase } from '../mvc/ViewBase.mjs';
 import { Rect, Point, toRad } from '../g/index.mjs';
-import { View, views } from '../mvc/index.mjs';
+import { View, views, Event } from '../mvc/index.mjs';
 import { CellView } from './CellView.mjs';
 import { ElementView } from './ElementView.mjs';
 import { LinkView } from './LinkView.mjs';
@@ -302,6 +302,8 @@ export const Paper = View.extend({
     },
 
     events: {
+        // 'dblclick .joint-cell [magnet]': 'magnetpointerdblclick',
+        'contextmenu .joint-cell [magnet]': 'magnetcontextmenu',
         'dblclick': 'pointerdblclick',
         'dbltap': 'pointerdblclick',
         'contextmenu': 'contextmenu',
@@ -316,10 +318,6 @@ export const Paper = View.extend({
         'mouseleave .joint-cell': 'mouseleave',
         'mouseenter .joint-tools': 'mouseenter',
         'mouseleave .joint-tools': 'mouseleave',
-        'dblclick .joint-cell [magnet]': 'magnetpointerdblclick',
-        'contextmenu .joint-cell [magnet]': 'magnetcontextmenu',
-        'mousedown .joint-link .label': 'onlabel', // interaction with link label
-        'touchstart .joint-link .label': 'onlabel',
         'dragstart .joint-cell image': 'onImageDragStart' // firefox fix
     },
 
@@ -2109,12 +2107,35 @@ export const Paper = View.extend({
 
         evt = normalizeEvent(evt);
 
-        var view = this.findView(evt.target);
+        const { target } = evt;
+
+        var view = this.findView(target);
         if (this.guard(evt, view)) return;
 
         var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
 
         if (view) {
+
+            // Element magnet
+            const magnetNode = target.closest('[magnet]');
+            if (magnetNode && view.el !== magnetNode && view.el.contains(magnetNode)) {
+                const magnetEvt = normalizeEvent(new Event(evt.originalEvent, {
+                    data: evt.data,
+                    // Originally the event listener was attached to the magnet element.
+                    currentTarget: magnetNode
+                }));
+                this.magnetpointerdblclick(magnetEvt);
+                if (magnetEvt.isDefaultPrevented()) {
+                    evt.preventDefault();
+                }
+                // `onmagnet` stops propagation when `addLinkFromMagnet` is allowed
+                if (magnetEvt.isPropagationStopped()) {
+                    return;
+                }
+                evt.data = magnetEvt.data;
+            }
+
+
             view.pointerdblclick(evt, localPoint.x, localPoint.y);
 
         } else {
@@ -2210,32 +2231,57 @@ export const Paper = View.extend({
                 evt.data = eventEvt.data;
             }
 
-            // Element magnet
-            const magnetNode = target.closest('[magnet]');
-            if (magnetNode && view.el !== magnetNode && view.el.contains(magnetNode)) {
-                const magnetEvt = normalizeEvent($.Event(evt.originalEvent, {
-                    data: evt.data,
-                    // Originally the event listener was attached to the magnet element.
-                    currentTarget: magnetNode
-                }));
-                this.onmagnet(magnetEvt);
-                if (magnetEvt.isDefaultPrevented()) {
-                    evt.preventDefault();
+            const isElementView = view.model.isElement();
+            if (isElementView) {
+                // Element magnet
+                const magnetNode = target.closest('[magnet]');
+                if (magnetNode && view.el !== magnetNode && view.el.contains(magnetNode)) {
+                    const magnetEvt = normalizeEvent(new Event(evt.originalEvent, {
+                        data: evt.data,
+                        // Originally the event listener was attached to the magnet element.
+                        currentTarget: magnetNode
+                    }));
+                    this.onmagnet(magnetEvt);
+                    if (magnetEvt.isDefaultPrevented()) {
+                        evt.preventDefault();
+                    }
+                    // `onmagnet` stops propagation when `addLinkFromMagnet` is allowed
+                    if (magnetEvt.isPropagationStopped()) {
+                        // `magnet:pointermove` and `magnet:pointerup` events must be fired
+                        if (isContextMenu) return;
+                        this.delegateDragEvents(view, magnetEvt.data);
+                        return;
+                    }
+                    evt.data = magnetEvt.data;
                 }
-                // `onmagnet` stops propagation when `addLinkFromMagnet` is allowed
-                if (magnetEvt.isPropagationStopped()) {
-                    // `magnet:pointermove` and `magnet:pointerup` events must be fired
-                    if (isContextMenu) return;
-                    this.delegateDragEvents(view, magnetEvt.data);
-                    return;
+            } else {
+
+                const labelNode = target.closest('.label');
+                if (labelNode && view.el.contains(labelNode)) {
+                    const labelEvt = normalizeEvent(new Event(evt.originalEvent, {
+                        data: evt.data,
+                        // Originally the event listener was attached to the magnet element.
+                        currentTarget: labelNode
+                    }));
+                    this.onlabel(labelEvt);
+                    if (labelEvt.isDefaultPrevented()) {
+                        evt.preventDefault();
+                    }
+                    if (labelEvt.isPropagationStopped()) {
+                        // TODO
+                        // `magnet:pointermove` and `magnet:pointerup` events must be fired
+                        if (isContextMenu) return;
+                        this.delegateDragEvents(view, labelEvt.data);
+                        return;
+                    }
+                    evt.data = labelEvt.data;
                 }
-                evt.data = magnetEvt.data;
             }
         }
 
         if (isContextMenu) {
             this.contextMenuFired = true;
-            const contextmenuEvt = $.Event(evt.originalEvent, { type: 'contextmenu', data: evt.data });
+            const contextmenuEvt = new Event(evt.originalEvent, { type: 'contextmenu', data: evt.data });
             this.contextMenuTrigger(contextmenuEvt);
         } else {
             const localPoint = this.snapToGrid(evt.clientX, evt.clientY);
@@ -2300,7 +2346,7 @@ export const Paper = View.extend({
         }
 
         if (!normalizedEvt.isPropagationStopped()) {
-            this.pointerclick($.Event(evt.originalEvent, { type: 'click', data: evt.data }));
+            this.pointerclick(new Event(evt.originalEvent, { type: 'click', data: evt.data }));
         }
 
         this.delegateEvents();
@@ -2495,7 +2541,7 @@ export const Paper = View.extend({
         if (evt.button === 2) {
             this.contextMenuFired = true;
             this.magnetContextMenuFired = true;
-            const contextmenuEvt = $.Event(evt.originalEvent, {
+            const contextmenuEvt = new Event(evt.originalEvent, {
                 type: 'contextmenu',
                 data: evt.data,
                 currentTarget: evt.currentTarget,
@@ -2527,6 +2573,9 @@ export const Paper = View.extend({
         }
 
         this.magnetContextMenuTrigger(evt);
+        if (evt.isPropagationStopped()) {
+            evt.stopImmediatePropagation();
+        }
     },
 
     magnetContextMenuTrigger: function(evt) {
@@ -2544,15 +2593,6 @@ export const Paper = View.extend({
 
         evt = normalizeEvent(evt);
         if (this.guard(evt, view)) return;
-
-        // Custom event
-        const eventEvt = this.customEventTrigger(evt, view, labelNode);
-        if (eventEvt) {
-            // `onevent` could have stopped propagation
-            if (eventEvt.isPropagationStopped()) return;
-
-            evt.data = eventEvt.data;
-        }
 
         var localPoint = this.snapToGrid(evt.clientX, evt.clientY);
         view.onlabel(evt, localPoint.x, localPoint.y);
@@ -2598,7 +2638,7 @@ export const Paper = View.extend({
             return false;
         }
 
-        if (this.svg === target || this.el === target || $.contains(this.svg, target)) {
+        if (this.el === target || this.svg.contains(target)) {
             return false;
         }
 
@@ -3088,7 +3128,7 @@ export const Paper = View.extend({
         const eventNode = evt.target.closest('[event]');
 
         if (eventNode && rootNode !== eventNode && view.el.contains(eventNode)) {
-            const eventEvt = normalizeEvent($.Event(evt.originalEvent, {
+            const eventEvt = normalizeEvent(new Event(evt.originalEvent, {
                 data: evt.data,
                 // Originally the event listener was attached to the event element.
                 currentTarget: eventNode
