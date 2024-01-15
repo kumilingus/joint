@@ -14,12 +14,13 @@ dia.attributes.placeholderURL = {
     }
 };
 
-var graph = new dia.Graph();
+var graph = new dia.Graph({}, { cellNamespace: joint.shapes });
 new dia.Paper({
     el: document.getElementById('paper'),
     width: 650,
     height: 800,
     gridSize: 1,
+    cellViewNamespace: joint.shapes,
     model: graph
 });
 

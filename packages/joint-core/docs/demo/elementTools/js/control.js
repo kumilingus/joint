@@ -1,28 +1,29 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-    var graph = new joint.dia.Graph;
+    const graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
 
-    var paper = new joint.dia.Paper({
+    const paper = new joint.dia.Paper({
         el: document.getElementById('paper'),
         width: 400,
         height: 300,
         model: graph,
+        cellViewNamespace: joint.shapes,
         interactive: false,
         background: {
             color: '#F3F7F6'
         }
     });
 
-    var RadiusTool = joint.elementTools.Control.extend({
+    const RadiusTool = joint.elementTools.Control.extend({
         getPosition: function(view) {
-            var model = view.model;
-            var radius = model.attr(['body', 'ry']) || 0;
+            const model = view.model;
+            const radius = model.attr(['body', 'ry']) || 0;
             return { x: 0, y: radius };
         },
         setPosition: function(view, coordinates) {
-            var model = view.model;
-            var size = model.size();
-            var ry = Math.min(Math.max(coordinates.y, 0), size.height / 2);
+            const model = view.model;
+            const size = model.size();
+            const ry = Math.min(Math.max(coordinates.y, 0), size.height / 2);
             model.attr(['body'], { rx: ry, ry: ry });
         },
         resetPosition: function(view) {
@@ -30,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    var rectangle = new joint.shapes.standard.Rectangle();
+    const rectangle = new joint.shapes.standard.Rectangle();
     rectangle.resize(100, 100);
     rectangle.position(100, 100);
     rectangle.attr('body/fill', '#30d0c6');

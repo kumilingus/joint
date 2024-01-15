@@ -24,14 +24,14 @@
 
 </body>
 <script>
-    var graph = new joint.dia.Graph;
-    var div = document.createElement('div');
+    const graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
+    const div = document.createElement('div');
     document.body.appendChild(div);
-    var paper = new joint.dia.Paper({
+    const paper = new joint.dia.Paper({
         el: div,
         width: 190,
         height: 90,
-        gridSize: 1,
+        cellViewNamespace: joint.shapes,
         interactive: {
             elementMove: false,
             addLinkFromMagnet: true
@@ -39,33 +39,34 @@
         model: graph
     });
 
-    var Circle = joint.dia.Element.define('i.Circle', {
-        markup: '<g><circle/><text/></g>>',
+    const Circle = joint.dia.Element.define('i.Circle', {
         attrs: {
-            circle: {
+            body: {
                 magnet: 'passive',
                 r: 20
             },
-            text: {
+            label: {
                 fill: 'white',
                 fontSize: 8,
-                xAlignment: 'middle',
-                yAlignment: 'middle'
+                textAnchor: 'middle',
+                textVerticalAnchor: 'middle'
             }
         }
+    }, {
+        markup: joint.util.svg`<circle @selector="body"/><text @selector="label"/>`,
     });
 
     graph.addCell(new Circle()
         .position(36, 34)
-        .attr('circle/fill', '#333333')
+        .attr('body/fill', '#333333')
     );
 
     graph.addCell(new Circle()
         .position(147, 50)
-        .attr('circle/fill', '#a6a6a6')
-        .attr('circle/r', 30)
-        .attr('circle/magnet', true)
-        .attr('text/text', 'MAGNET')
+        .attr('body/fill', '#a6a6a6')
+        .attr('body/r', 30)
+        .attr('body/magnet', true)
+        .attr('label/text', 'MAGNET')
     );
 
 </script>
