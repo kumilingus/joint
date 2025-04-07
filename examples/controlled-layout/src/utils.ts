@@ -56,21 +56,21 @@ export function runLayout(paper: dia.Paper) {
         return aPos.x - bPos.x;
     });
 
-    const rankSep = 100;
+    const rankSep = 100;3
 
     DirectedGraph.layout([...otherElements, ...otherLinks, ...buttonLinks, ...buttons], {
         disableOptimalOrderHeuristic: true,
         setVertices: true,
-        align: 'UL',
+        // align: 'UL',
         rankSep,
-        setPosition: (el, position) => {
-            let x = position.x - position.width / 2;
-            let y = position.y - position.height / 2;
-            if (isButton(el)) {
-                y -= rankSep / 2 - 10;
-            }
-            el.position(x, y);
-        },
+        // setPosition: (el, position) => {
+        //     let x = position.x - position.width / 2;
+        //     let y = position.y - position.height / 2;
+        //     if (isButton(el)) {
+        //         y -= rankSep / 2 - 10;
+        //     }
+        //     el.position(x, y);
+        // },
     });
     fitContent(paper);
     paper.unfreeze();

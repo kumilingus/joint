@@ -3,7 +3,7 @@ import { End, Step, Decision, isButton, IElement } from './shapes';
 import { runLayout, createExistingElementListItem, isBridge, createNewElementListItem, validChildrenCount } from './utils';
 import { addEffect, effects, removeEffect } from './effects';
 import { LinkRemoveTool, ElementRemoveTool } from './RemoveTool';
-import { showGhostOnNextInteraction } from './ghost-preview';
+// import { showGhostOnNextInteraction } from './ghost-preview';
 interface ElementControllerArgs {
     graph: dia.Graph;
     paper: dia.Paper;
@@ -35,10 +35,10 @@ export class ElementController extends mvc.Listener<[ElementControllerArgs]> {
             'element:pointerclick': onElementPointerClick,
             'cell:highlight': onCellHighlight,
             'cell:unhighlight': onCellUnhighlight,
-            'element:pointerdown': (_context, elementView: dia.ElementView, evt: dia.Event) => {
-                showGhostOnNextInteraction(paper);
-                elementView.preventDefaultInteraction(evt);
-            }
+            // 'element:pointerdown': (_context, elementView: dia.ElementView, evt: dia.Event) => {
+            //     showGhostOnNextInteraction(paper);
+            //     elementView.preventDefaultInteraction(evt);
+            // }
         })
     }
 }

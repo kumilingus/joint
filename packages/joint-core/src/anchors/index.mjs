@@ -64,6 +64,45 @@ function _perpendicular(view, magnet, refPoint, opt) {
     return anchor;
 }
 
+
+const Preference = {
+    HORIZONTAL: 'horizontal',
+    VERTICAL: 'vertical',
+}
+
+function getMiddleSide(rect, point, opt) {
+    let { threshold = 0, preference } = opt;
+    const { x, y } = point;
+    const { x: left , y: top, width, height } = rect;
+    const { top: tt, left: tl, right: tr, bottom: tb } = util.normalizeSides(threshold);
+
+    switch (preference) {
+        case Preference.HORIZONTAL: {
+            const bottom = top + height;
+            if (y > top - tt && y < bottom + tb) {
+                const cx = left + width / 2;
+                if (x < cx) return 'left';
+                if (x > cx) return 'right';
+            }
+            const cy = top + height / 2;
+            return (y < cy) ? 'top' : 'bottom';
+        }
+        case Preference.VERTICAL: {
+            const right = left + width;
+            if (x > left - tl && x < right + tr) {
+                const cy = top + height / 2;
+                if (y < cy) return 'top';
+                if (y > cy) return 'bottom';
+            }
+            const cx = left + width / 2;
+            return (x < cx) ? 'left' : 'right';
+        }
+    }
+
+    // angle based preference
+    return rect.sideNearestToPoint(point);
+}
+
 function _midSide(view, magnet, refPoint, opt) {
 
     var rotate = !!opt.rotate;
@@ -81,7 +120,7 @@ function _midSide(view, magnet, refPoint, opt) {
 
     if (rotate) refPoint.rotate(center, angle);
 
-    var side = bbox.sideNearestToPoint(refPoint);
+    var side = getMiddleSide(bbox, refPoint, opt);
     var anchor;
     switch (side) {
         case 'left':

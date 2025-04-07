@@ -15,12 +15,31 @@ const paper = new dia.Paper({
     magnetThreshold: 'onleave',
     clickThreshold: 10,
     defaultConnector: {
+        // name: 'curve',
+        // args: {
+        //    tension: 0.9,
+        // }
         name: 'straight',
         args: {
-            cornerType: 'cubic',
-            cornerRadius: 5,
+            cornerType: 'line',
+            cornerRadius: 10,
         }
     },
+
+    defaultAnchor: {
+        name: 'midSide',
+        args: {
+            // padding: 10
+            preference: 'horizontal',
+            // threshold: {
+            //     bottom: 50
+            // }
+            // threshold: -Infinity
+            // preference: 'vertical',
+
+        }
+    },
+
     allowLink: (linkView) => {
         const { model } = linkView;
 
@@ -52,14 +71,14 @@ const paper = new dia.Paper({
     async: true,
     frozen: true,
     // Enable interaction only for buttons
-    interactive: (cellView: dia.CellView) => {
-        if (!isButton(cellView.model)) return false;
+    // interactive: (cellView: dia.CellView) => {
+    //     if (!isButton(cellView.model)) return false;
 
-        return {
-            addLinkFromMagnet: true,
-            elementMove: false
-        }
-    },
+    //     return {
+    //         addLinkFromMagnet: true,
+    //         elementMove: false
+    //     }
+    // },
     highlighting: {
         [dia.CellView.Highlighting.CONNECTING]: false
     },
@@ -74,39 +93,57 @@ const paper = new dia.Paper({
 
         return end;
     },
-    defaultAnchor: (endView, _endMagnet, _anchorReference, _args, endType, linkView) => {
-        const endBBox = endView.model.getBBox();
+    // defaultLink: () => {
+    //     return new shapes.standard.Link({
+    //         connector: { name: 'curve' },
+    //         attrs: {
+    //             line: {
+    //                 strokeWidth: 2,
+    //                 stroke: '#333',
+    //                 strokeDasharray: '10 2',
+    //                 targetMarker: {
+    //                     name: 'block',
+    //                     size: 10,
+    //                     fill: '#333'
+    //                 }
+    //             },
+    //         }
+    //     });
+    // },
 
-        const sourceCell = linkView.model.getSourceCell();
-        const targetCell = linkView.model.getTargetCell();
+    // defaultAnchor: (endView, _endMagnet, _anchorReference, _args, endType, linkView) => {
+    //     const endBBox = endView.model.getBBox();
 
-        // Only apply relative logic if both ends are connected to elements
-        if (sourceCell && targetCell) {
+    //     const sourceCell = linkView.model.getSourceCell();
+    //     const targetCell = linkView.model.getTargetCell();
 
-            const sourceBBox = sourceCell.getBBox();
-            const targetBBox = targetCell.getBBox();
+    //     // Only apply relative logic if both ends are connected to elements
+    //     if (sourceCell && targetCell) {
 
-            // Check if the source element is visually above the target element
-            if (sourceBBox.y < targetBBox.y) {
-                // Source is above Target
-                if (endType === 'source') {
-                    return sourceBBox.bottomMiddle(); // Source anchor: Bottom Middle
-                } else { // endType === 'target'
-                    return targetBBox.topMiddle();    // Target anchor: Top Middle
-                }
-            } else {
-                // Source is below or level with Target
-                if (endType === 'source') {
-                    return sourceBBox.topMiddle();    // Source anchor: Top Middle
-                } else { // endType === 'target'
-                    return targetBBox.bottomMiddle(); // Target anchor: Bottom Middle
-                }
-            }
-        }
+    //         const sourceBBox = sourceCell.getBBox();
+    //         const targetBBox = targetCell.getBBox();
 
-        // Fallback if one end is a point or views not found
-        return endBBox.center();
-    }
+    //         // Check if the source element is visually above the target element
+    //         if (sourceBBox.y < targetBBox.y) {
+    //             // Source is above Target
+    //             if (endType === 'source') {
+    //                 return sourceBBox.bottomMiddle(); // Source anchor: Bottom Middle
+    //             } else { // endType === 'target'
+    //                 return targetBBox.topMiddle();    // Target anchor: Top Middle
+    //             }
+    //         } else {
+    //             // Source is below or level with Target
+    //             if (endType === 'source') {
+    //                 return sourceBBox.topMiddle();    // Source anchor: Top Middle
+    //             } else { // endType === 'target'
+    //                 return targetBBox.bottomMiddle(); // Target anchor: Bottom Middle
+    //             }
+    //         }
+    //     }
+
+    //     // Fallback if one end is a point or views not found
+    //     return endBBox.center();
+    // }
 });
 
 constructGraphLayer('E1', ['E2', 'E3'], graph);
