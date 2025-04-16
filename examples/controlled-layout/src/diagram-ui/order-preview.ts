@@ -1,10 +1,10 @@
 import { type dia, mvc } from '@joint/core';
 import { Button } from '../diagram-engine/shapes';
 import { sortChildren } from '../diagram-engine';
-import type { DiagramControllerContext } from './DiagramController';
+import type { DiagramContext } from './DiagramController';
 import { addEffect, removeEffects, effects } from './effects';
 
-export function showOrderPreviewOnNextInteraction(ctx: DiagramControllerContext) {
+export function showOrderPreviewOnNextInteraction(ctx: DiagramContext) {
     const { paper, graph, json, updateDiagram } = ctx;
     const listener = new mvc.Listener();
     listener.listenTo(paper, {

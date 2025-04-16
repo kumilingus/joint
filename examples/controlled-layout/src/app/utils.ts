@@ -2,7 +2,7 @@
 import { dia } from "@joint/core";
 import { Placeholder } from "../diagram-engine/shapes";
 import { addEffect, effects, removeEffect } from "../diagram-ui/effects";
-import { insertNode, appendNode, setNode } from '../diagram-engine/data-api';
+import { insertNode, appendNode, setNode, addEdge } from '../diagram-engine/data-api';
 
 export function createListItem(thumbnail: SVGSVGElement, label: string) {
     const item = document.createElement('div');
@@ -34,8 +34,8 @@ export function createNewElementListItem(json: any, type: string, parent: dia.El
     return item;
 }
 
-export function createExistingElementListItem(parent: dia.Element, element: dia.Element, paper: dia.Paper) {
-
+export function createExistingElementListItem(ctx: DiagramContext, parent: dia.Element, element: dia.Element) {
+    const { paper, graph } = ctx;
     const elementView = element.findView(paper) as dia.ElementView;
     const item = createListItem(createBlankThumbnail(element.get('type')), String(element.id));
 
@@ -48,9 +48,9 @@ export function createExistingElementListItem(parent: dia.Element, element: dia.
     });
 
     item.addEventListener('click', () => {
-        makeConnection(parent, element, paper.model, { uiConnection: true });
         removeEffect(paper, effects.CONNECTION_TARGET);
-        paper.model.trigger('request-layout');
+        addEdge(ctx.json, parent.id, element.id);
+        graph.trigger('request-layout', { disableOptimalOrderHeuristic: true });
     });
 
     return item;

@@ -6,7 +6,7 @@ import { showOrderPreviewOnNextInteraction } from './order-preview';
 import { closeConnectionsList, openPlaceholderMenu, openButtonMenu, addLinkTools, addElementTools, addLinkHoverTools } from './actions';
 import { GrowthLimit, MakeElement, buildDiagram, BuildDiagramOptions } from '../diagram-engine';
 
-export interface DiagramControllerContext {
+export interface DiagramContext {
     graph: dia.Graph;
     paper: dia.Paper;
     json: any;
@@ -15,13 +15,13 @@ export interface DiagramControllerContext {
     updateDiagram: (opt?: BuildDiagramOptions) => void;
 }
 
-export class DiagramController extends mvc.Listener<[DiagramControllerContext]> {
+export class DiagramController extends mvc.Listener<[DiagramContext]> {
 
     get context() {
         return this.callbackArguments[0];
     }
 
-    constructor(ctx: Omit<DiagramControllerContext, 'updateDiagram' | 'graph'>) {
+    constructor(ctx: Omit<DiagramContext, 'updateDiagram' | 'graph'>) {
         const graph = ctx.paper.model;
         const updateDiagram = ((opt: BuildDiagramOptions = {}) => {
             const { json, paper } = ctx;
@@ -65,19 +65,19 @@ export class DiagramController extends mvc.Listener<[DiagramControllerContext]> 
     }
 }
 
-function onElementPointerdown(ctx: DiagramControllerContext, elementView: dia.ElementView, evt: dia.Event) {
+function onElementPointerdown(ctx: DiagramContext, elementView: dia.ElementView, evt: dia.Event) {
     if (Button.isButton(elementView.model)) return;
     showOrderPreviewOnNextInteraction(ctx);
     elementView.preventDefaultInteraction(evt);
 }
 
-function onAdd(ctx: DiagramControllerContext, cell: dia.Cell, _collection: mvc.Collection, _opt: any) {
+function onAdd(ctx: DiagramContext, cell: dia.Cell, _collection: mvc.Collection, _opt: any) {
 
     if (Button.isButton(cell)) return;
     closeConnectionsList(ctx);
 }
 
-function onLinkConnect(ctx: DiagramControllerContext, linkView: dia.LinkView) {
+function onLinkConnect(ctx: DiagramContext, linkView: dia.LinkView) {
     const { json, graph, updateDiagram } = ctx;
     const link = linkView.model;
 
@@ -86,7 +86,7 @@ function onLinkConnect(ctx: DiagramControllerContext, linkView: dia.LinkView) {
     sortNodes(json, graph);
 }
 
-function onLinkPointerClick(ctx: DiagramControllerContext, linkView: dia.LinkView) {
+function onLinkPointerClick(ctx: DiagramContext, linkView: dia.LinkView) {
     const { paper } = ctx;
     const link = linkView.model;
 
@@ -97,7 +97,7 @@ function onLinkPointerClick(ctx: DiagramControllerContext, linkView: dia.LinkVie
     addLinkTools(ctx, linkView);
 }
 
-function onLinkMouseEnter(ctx: DiagramControllerContext, linkView: dia.LinkView) {
+function onLinkMouseEnter(ctx: DiagramContext, linkView: dia.LinkView) {
     const link = linkView.model;
 
     if (ButtonLink.isButtonLink(link)) return;
@@ -105,21 +105,21 @@ function onLinkMouseEnter(ctx: DiagramControllerContext, linkView: dia.LinkView)
     addLinkHoverTools(ctx, linkView);
 }
 
-function onLinkMouseLeave(_ctx: DiagramControllerContext, linkView: dia.LinkView) {
+function onLinkMouseLeave(_ctx: DiagramContext, linkView: dia.LinkView) {
 
     if (linkView.hasTools('hover-tool')) {
         linkView.removeTools();
     }
 }
 
-function onBlankPointerClick(ctx: DiagramControllerContext) {
+function onBlankPointerClick(ctx: DiagramContext) {
     const { paper } = ctx;
 
     closeConnectionsList(ctx);
     paper.removeTools();
 }
 
-function onElementPointerClick(ctx: DiagramControllerContext, elementView: dia.ElementView) {
+function onElementPointerClick(ctx: DiagramContext, elementView: dia.ElementView) {
     const { paper } = ctx;
     const element = elementView.model;
 
@@ -140,12 +140,12 @@ function onElementPointerClick(ctx: DiagramControllerContext, elementView: dia.E
     addElementTools(ctx, elementView);
 }
 
-function onCellHighlight(_context: DiagramControllerContext, cellView: dia.CellView, _node: SVGElement, { type }: { type: dia.CellView.Highlighting }) {
+function onCellHighlight(_context: DiagramContext, cellView: dia.CellView, _node: SVGElement, { type }: { type: dia.CellView.Highlighting }) {
     if (type !== dia.CellView.Highlighting.CONNECTING) return;
     addEffect(cellView, effects.CONNECTION_SOURCE);
 }
 
-function onCellUnhighlight({ paper }: DiagramControllerContext, _cellView: dia.CellView, _node: SVGElement, { type }: { type: dia.CellView.Highlighting }) {
+function onCellUnhighlight({ paper }: DiagramContext, _cellView: dia.CellView, _node: SVGElement, { type }: { type: dia.CellView.Highlighting }) {
     if (type !== dia.CellView.Highlighting.CONNECTING) return;
 
     removeEffect(paper, effects.CONNECTION_SOURCE);

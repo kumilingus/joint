@@ -1,14 +1,14 @@
 import { dia, util, linkTools, elementTools } from '@joint/core';
 import { Button, Placeholder } from '../diagram-engine/shapes';
 import { addEffect, removeEffect, effects } from './effects';
-import { DiagramControllerContext } from './DiagramController';
+import { DiagramContext } from './DiagramController';
 import { createExistingElementListItem, createNewElementListItem } from '../app/utils';
 import { removeEdge, removeNode } from '../diagram-engine/data-api';
 import { isBridge, getChildrenCount } from '../diagram-engine/utils';
 
 const connectionsList = document.querySelector<HTMLDivElement>('#connections-list')!;
 
-export function openPlaceholderMenu(ctx: DiagramControllerContext, element: Placeholder) {
+export function openPlaceholderMenu(ctx: DiagramContext, element: Placeholder) {
     const { paper } = ctx;
     const { x, y } = paper.localToPagePoint(element.getBBox().center());
     connectionsList.style.left = `${x}px`;
@@ -21,7 +21,7 @@ export function openPlaceholderMenu(ctx: DiagramControllerContext, element: Plac
     addEffect(element.findView(paper), effects.CONNECTION_SOURCE);
 }
 
-export function openButtonMenu(ctx: DiagramControllerContext, element: Button) {
+export function openButtonMenu(ctx: DiagramContext, element: Button) {
     const { paper, graph } = ctx;
     const [parent] = graph.getNeighbors(element, { inbound: true });
     // Open the connections list at the buttons's position
@@ -36,7 +36,7 @@ export function openButtonMenu(ctx: DiagramControllerContext, element: Button) {
     addEffect(parent.findView(paper), effects.CONNECTION_SOURCE);
 }
 
-export function positionConnectionsList(ctx: DiagramControllerContext, x: number, y: number) {
+export function positionConnectionsList(ctx: DiagramContext, x: number, y: number) {
     const { paper } = ctx;
     // Open the connections list at the buttons's position
     connectionsList.style.left = `${x}px`;
@@ -46,7 +46,7 @@ export function positionConnectionsList(ctx: DiagramControllerContext, x: number
     connectionsList.style.transform = `scale(${clampedScale}) translate(-50%, -50%)`;
 }
 
-export function openConnectionsList(ctx: DiagramControllerContext, parent: dia.Element, insertBefore?: dia.Element) {
+export function openConnectionsList(ctx: DiagramContext, parent: dia.Element, insertBefore?: dia.Element) {
     const { paper, json } = ctx;
 
     closeConnectionsList(ctx);
@@ -100,13 +100,13 @@ export function openConnectionsList(ctx: DiagramControllerContext, parent: dia.E
     availableConnections.classList.add('element-list');
 
     elements.forEach((element) => {
-        availableConnections.appendChild(createExistingElementListItem(parent, element, paper));
+        availableConnections.appendChild(createExistingElementListItem(ctx, parent, element));
     });
 
     connectionsList.appendChild(availableConnections);
 }
 
-export function closeConnectionsList(ctx: DiagramControllerContext) {
+export function closeConnectionsList(ctx: DiagramContext) {
     const { paper } = ctx;
     connectionsList.style.display = 'none';
     // Clear all child elements from the connections list
@@ -114,7 +114,7 @@ export function closeConnectionsList(ctx: DiagramControllerContext) {
     removeEffect(paper, effects.CONNECTION_SOURCE);
 }
 
-export function addLinkTools(ctx: DiagramControllerContext, linkView: dia.LinkView) {
+export function addLinkTools(ctx: DiagramContext, linkView: dia.LinkView) {
     const { graph, json, updateDiagram } = ctx;
     const link = linkView.model;
 
@@ -137,7 +137,7 @@ export function addLinkTools(ctx: DiagramControllerContext, linkView: dia.LinkVi
     }));
 }
 
-export function addLinkHoverTools(ctx: DiagramControllerContext, linkView: dia.LinkView) {
+export function addLinkHoverTools(ctx: DiagramContext, linkView: dia.LinkView) {
     const { paper } = ctx;
     const link = linkView.model;
 
@@ -163,7 +163,7 @@ export function addLinkHoverTools(ctx: DiagramControllerContext, linkView: dia.L
     }));
 }
 
-export function addElementTools(ctx: DiagramControllerContext, elementView: dia.ElementView) {
+export function addElementTools(ctx: DiagramContext, elementView: dia.ElementView) {
     const { graph, json, updateDiagram, growthLimit } = ctx;
     const element = elementView.model;
     const [parent] = graph.getNeighbors(element, { inbound: true });
