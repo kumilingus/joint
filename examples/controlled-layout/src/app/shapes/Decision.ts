@@ -1,24 +1,21 @@
 import { shapes, util } from "@joint/core";
-import { IElement } from ".";
 
-export class End extends shapes.standard.Ellipse implements IElement {
-    defaults(): Partial<shapes.standard.EllipseAttributes> {
+export const DECISION_TYPE = 'Decision';
+
+export class Decision extends shapes.standard.Path {
+    defaults(): Partial<shapes.standard.PathAttributes> {
         return util.defaultsDeep({
-            type: 'app.End',
-            size: {
-                width: 30,
-                height: 30
-            },
+            type: DECISION_TYPE,
+            size: { width: 100, height: 30 },
             attrs: {
                 body: {
-                    rx: 15,
-                    ry: 15,
+                    d: 'M 20 0 H calc(w - 20) L calc(w) calc(h / 2) calc(w - 20) calc(h) H 20 L 0 calc(h / 2) Z',
                     stroke: '#333',
                     strokeWidth: 2
                 },
                 label: {
-                    fill: "#666666",
-                    fontSize: 13,
+                    fill: "#333",
+                    fontSize: 10,
                     fontFamily: "sans-serif",
                     style: {
                         textTransform: "capitalize"
@@ -31,23 +28,13 @@ export class End extends shapes.standard.Ellipse implements IElement {
     static create(id?: string) {
         id = id ?? util.uniqueId();
 
-        return new End({
+        return new Decision({
             id,
             attrs: {
                 label: {
-                    text: id
+                    text: id.slice(0, 5)
                 }
             }
         });
     }
-
-    getMaxNumberOfChildren() {
-        return 0;
-    }
 }
-
-Object.assign(shapes, {
-    app: {
-        End
-    }
-});

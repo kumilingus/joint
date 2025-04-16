@@ -1,9 +1,9 @@
-import { shapes, util } from '@joint/core';
+import { shapes, util, dia } from '@joint/core';
 
 export class Button extends shapes.standard.Circle {
     defaults(): Partial<shapes.standard.CircleAttributes> {
         return util.defaultsDeep({
-            type: 'app.Button',
+            type: 'Button',
             size: { width: 20, height: 30 },
             attrs: {
                 root: {
@@ -11,18 +11,22 @@ export class Button extends shapes.standard.Circle {
                 },
                 body: {
                     magnet: true,
-                    stroke: 'gray',
+                    stroke: '#0075F2',
                     strokeWidth: 1,
                     cursor: 'crosshair'
                 },
                 label: {
                     pointerEvents: 'none',
-                    fill: 'gray',
+                    fill: '#0075F2',
                     fontWeight: 'bold',
                     text: '+',
                     y: 10
                 }
             }
         }, super.defaults);
+    }
+
+    static isButton(element: dia.Cell): element is Button {
+        return element.get('type') === 'Button';
     }
 }

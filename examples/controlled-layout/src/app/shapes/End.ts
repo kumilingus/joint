@@ -1,21 +1,24 @@
-import { shapes, util } from '@joint/core';
-import { IElement } from ".";
+import { shapes, util } from "@joint/core";
 
-export class Step extends shapes.standard.Rectangle implements IElement {
+export const END_TYPE = 'End';
 
-    defaults(): Partial<shapes.standard.RectangleAttributes> {
+export class End extends shapes.standard.Ellipse {
+    defaults(): Partial<shapes.standard.EllipseAttributes> {
         return util.defaultsDeep({
-            type: 'app.Step',
-            size: { width: 100, height: 30 },
+            type: END_TYPE,
+            size: {
+                width: 30,
+                height: 30
+            },
             attrs: {
                 body: {
-                    rx: 5,
-                    ry: 5,
+                    rx: 15,
+                    ry: 15,
                     stroke: '#333',
                     strokeWidth: 2
                 },
                 label: {
-                    fill: "#333",
+                    fill: "#666666",
                     fontSize: 13,
                     fontFamily: "sans-serif",
                     style: {
@@ -23,30 +26,19 @@ export class Step extends shapes.standard.Rectangle implements IElement {
                     }
                 }
             }
-        }, super.defaults)
+        }, super.defaults);
     }
 
     static create(id?: string) {
-
         id = id ?? util.uniqueId();
 
-        return new Step({
+        return new End({
             id,
             attrs: {
                 label: {
-                    text: id
+                    text: id.slice(0, 2)
                 }
             }
         });
     }
-
-    getMaxNumberOfChildren() {
-        return 1;
-    }
 }
-
-Object.assign(shapes, {
-    app: {
-        Step
-    }
-});

@@ -3,11 +3,14 @@ import { dia, shapes, util } from '@joint/core';
 export class ButtonLink extends shapes.standard.Link {
     defaults(): Partial<dia.Link.Attributes> {
         return util.defaultsDeep({
-            type: 'app.ButtonLink',
+            type: 'ButtonLink',
             z: -1,
             attrs: {
+                wrapper: {
+                    cursor: 'default',
+                },
                 line: {
-                    stroke: '#999',
+                    stroke: '#0075F2',
                     strokeWidth: 2,
                     strokeDasharray: '5, 5',
                     targetMarker: null
@@ -15,10 +18,8 @@ export class ButtonLink extends shapes.standard.Link {
             }
         }, super.defaults)
     }
-}
 
-Object.assign(shapes, {
-    app: {
-        ButtonLink
+    static isButtonLink(cell: dia.Cell): cell is ButtonLink {
+        return cell.get('type') === 'ButtonLink';
     }
-});
+}
