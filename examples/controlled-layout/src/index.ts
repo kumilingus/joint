@@ -2,6 +2,7 @@ import { dia, shapes } from "@joint/core";
 
 import { fitContent } from "./app/utils";
 import { Decision, End, Step, DECISION_TYPE, END_TYPE, STEP_TYPE } from "./app/shapes";
+import { closeMenu, openButtonMenu, openLinkButtonMenu, openPlaceholderMenu } from './app/menu';
 
 import type { GrowthLimit, MakeElement, DiagramData, NodeData  } from './diagram-engine';
 import * as engineShapes from './diagram-engine/shapes';
@@ -34,9 +35,6 @@ type DiagramNode = typeof STEP_TYPE | typeof DECISION_TYPE | typeof END_TYPE;
 
 const json: DiagramData<DiagramNode> = {
     nodes: {
-        // 'a': { type: 'Decision', label: 'Decision 1' },
-        // 'b': { type: 'Step', to: [{ id: 'a' }] },
-        // 'c': { to: [{ id: 'a' }] },
         'start': { type: 'Step', to: [{ id: 'd' }] },
         'd': {
             type: 'Decision',
@@ -85,7 +83,14 @@ const diagramController = new DiagramController({
 });
 
 diagramController.startListening();
-diagramController.build();
+diagramController.listenTo(paper, {
+    'link:button:pointerclick': openLinkButtonMenu,
+    'button:pointerclick': openButtonMenu,
+    'placeholder:pointerclick': openPlaceholderMenu,
+    'blank:pointerdown cell:pointerdown': closeMenu
+});
 
+diagramController.build();
 fitContent(paper);
+
 window.addEventListener('resize', () => fitContent(paper));

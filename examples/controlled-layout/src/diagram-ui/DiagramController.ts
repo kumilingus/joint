@@ -3,7 +3,7 @@ import { Button, ButtonLink, Placeholder } from '../diagram-engine/shapes';
 import { addEdge, sortNodes } from '../diagram-engine/data-api';
 import { addEffect, effects, removeEffect } from './effects';
 import { showOrderPreviewOnNextInteraction } from './order-preview';
-import { closeConnectionsList, openPlaceholderMenu, openButtonMenu, addLinkTools, addElementTools, addLinkHoverTools } from './actions';
+import { addLinkTools, addElementTools, addLinkHoverTools } from './tools';
 import { GrowthLimit, MakeElement, buildDiagram, BuildDiagramOptions } from '../diagram-engine';
 
 export interface DiagramContext {
@@ -44,12 +44,7 @@ export class DiagramController extends mvc.Listener<[DiagramContext]> {
     }
 
     startListening() {
-        const { paper, graph } = this.context;
-
-        this.listenTo(graph, {
-            'add': onAdd,
-            'request-layout': ({ updateDiagram }, opt) => updateDiagram(opt)
-        })
+        const { paper } = this.context;
 
         this.listenTo(paper, {
             'link:connect': onLinkConnect,
@@ -71,12 +66,6 @@ function onElementPointerdown(ctx: DiagramContext, elementView: dia.ElementView,
     elementView.preventDefaultInteraction(evt);
 }
 
-function onAdd(ctx: DiagramContext, cell: dia.Cell, _collection: mvc.Collection, _opt: any) {
-
-    if (Button.isButton(cell)) return;
-    closeConnectionsList(ctx);
-}
-
 function onLinkConnect(ctx: DiagramContext, linkView: dia.LinkView) {
     const { json, graph, updateDiagram } = ctx;
     const link = linkView.model;
@@ -90,7 +79,6 @@ function onLinkPointerClick(ctx: DiagramContext, linkView: dia.LinkView) {
     const { paper } = ctx;
     const link = linkView.model;
 
-    closeConnectionsList(ctx);
     paper.removeTools();
 
     if (ButtonLink.isButtonLink(link)) return;
@@ -114,8 +102,6 @@ function onLinkMouseLeave(_ctx: DiagramContext, linkView: dia.LinkView) {
 
 function onBlankPointerClick(ctx: DiagramContext) {
     const { paper } = ctx;
-
-    closeConnectionsList(ctx);
     paper.removeTools();
 }
 
@@ -123,16 +109,15 @@ function onElementPointerClick(ctx: DiagramContext, elementView: dia.ElementView
     const { paper } = ctx;
     const element = elementView.model;
 
-    closeConnectionsList(ctx);
     paper.removeTools();
 
     if (Placeholder.isPlaceholder(element)) {
-        openPlaceholderMenu(ctx, element);
+        paper.trigger('placeholder:pointerclick', elementView);
         return;
     }
 
     if (Button.isButton(element)) {
-        openButtonMenu(ctx, element);
+        paper.trigger('button:pointerclick', elementView);
         return;
     }
 
