@@ -1,7 +1,7 @@
 import { g, dia, anchors, connectors, connectionStrategies } from '@joint/core';
 import { Button } from '../diagram-engine/shapes/Button';
 import { Link } from '../diagram-engine/shapes';
-import { PRIMARY_COLOR } from '../diagram-engine/theme';
+import { PRIMARY_COLOR } from '../diagram-engine/const';
 
 const LINK_SOURCE_ANCHOR_OFFSET = 25;
 const LINK_TARGET_ANCHOR_OFFSET = 20;

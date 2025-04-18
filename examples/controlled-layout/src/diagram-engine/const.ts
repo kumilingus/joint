@@ -1,5 +1,4 @@
 export const PRIMARY_COLOR = '#256EFF';
-export const HIGHLIGHTER_COLOR = '#256EFF';
 
 export const LINK_LABEL_ATTRIBUTES = {
     fontSize: 12,

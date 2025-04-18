@@ -1,5 +1,5 @@
 import { shapes, util, dia } from '@joint/core';
-import { PRIMARY_COLOR } from '../theme';
+import { PRIMARY_COLOR } from '../const';
 
 export class Button extends shapes.standard.Circle {
     defaults(): Partial<shapes.standard.CircleAttributes> {

@@ -1,7 +1,7 @@
 import { dia, shapes } from "@joint/core";
 import { DirectedGraph } from "@joint/layout-directed-graph";
 import { Link, Button, ButtonLink, Placeholder } from "./shapes";
-import { LINK_LABEL_ATTRIBUTES } from "./theme";
+import { LINK_LABEL_ATTRIBUTES } from "./const";
 import { measureTextSize, getChildrenCount } from './utils';
 import type { DiagramData, NodeData } from "./data-api";
 import { getNodeEdges } from "./data-api";

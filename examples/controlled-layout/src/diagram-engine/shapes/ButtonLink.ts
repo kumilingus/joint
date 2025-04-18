@@ -1,5 +1,5 @@
 import { dia, shapes, util } from '@joint/core';
-import { PRIMARY_COLOR } from '../theme';
+import { PRIMARY_COLOR } from '../const';
 
 export class ButtonLink extends shapes.standard.Link {
     defaults(): Partial<dia.Link.Attributes> {

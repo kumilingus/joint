@@ -1,5 +1,5 @@
 import { dia, highlighters } from "@joint/core";
-import { HIGHLIGHTER_COLOR } from '../diagram-engine/theme';
+import { HIGHLIGHTER_COLOR } from './theme';
 
 export const effects = {
     CONNECTION_SOURCE: 'connection-source',

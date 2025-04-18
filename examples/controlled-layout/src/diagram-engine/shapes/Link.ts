@@ -1,5 +1,5 @@
 import { dia, shapes, util } from '@joint/core';
-import { LINK_LABEL_ATTRIBUTES } from '../theme';
+import { LINK_LABEL_ATTRIBUTES } from '../const';
 
 export class Link extends shapes.standard.Link {
     defaults(): Partial<dia.Link.Attributes> {

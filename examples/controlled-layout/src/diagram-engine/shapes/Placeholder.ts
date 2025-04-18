@@ -1,5 +1,5 @@
 import { shapes, util, dia } from "@joint/core";
-import { PRIMARY_COLOR } from '../theme';
+import { PRIMARY_COLOR } from '../const';
 
 export class Placeholder extends shapes.standard.Rectangle {
     defaults(): Partial<shapes.standard.RectangleAttributes> {
