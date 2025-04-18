@@ -1,9 +1,5 @@
 import { dia, shapes, util } from '@joint/core';
-
-export const LINK_LABEL_ATTRIBUTES = {
-    fontSize: 12,
-    fontFamily: 'sans-serif',
-}
+import { LINK_LABEL_ATTRIBUTES } from '../theme';
 
 export class Link extends shapes.standard.Link {
     defaults(): Partial<dia.Link.Attributes> {

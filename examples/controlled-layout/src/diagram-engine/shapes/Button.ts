@@ -1,4 +1,5 @@
 import { shapes, util, dia } from '@joint/core';
+import { PRIMARY_COLOR } from '../theme';
 
 export class Button extends shapes.standard.Circle {
     defaults(): Partial<shapes.standard.CircleAttributes> {
@@ -11,13 +12,14 @@ export class Button extends shapes.standard.Circle {
                 },
                 body: {
                     magnet: true,
-                    stroke: '#0075F2',
+                    stroke: PRIMARY_COLOR,
                     strokeWidth: 1,
                     cursor: 'crosshair'
                 },
                 label: {
                     pointerEvents: 'none',
-                    fill: '#0075F2',
+                    fill: PRIMARY_COLOR,
+                    opacity: 0.7,
                     fontWeight: 'bold',
                     text: '+',
                     y: 10

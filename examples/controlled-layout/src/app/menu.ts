@@ -22,6 +22,7 @@ export function openLinkButtonMenu(ctx: DiagramContext, linkView: dia.LinkView) 
     const { x, y } = paper.localToPagePoint(linkView.getPointAtRatio(0.5));
     positionConnectionsList(ctx, x, y);
     openConnectionsList(ctx, link.getSourceElement(), link.getTargetElement());
+    addEffect(linkView, effects.CONNECTION_SOURCE);
 }
 
 export function openPlaceholderMenu(ctx: DiagramContext, elementView: dia.ElementView) {
@@ -30,7 +31,7 @@ export function openPlaceholderMenu(ctx: DiagramContext, elementView: dia.Elemen
     const { x, y } = paper.localToPagePoint(element.getBBox().center());
     positionConnectionsList(ctx, x, y);
     openConnectionsList(ctx, element);
-    addEffect(element.findView(paper), effects.CONNECTION_SOURCE);
+    addEffect(elementView, effects.CONNECTION_SOURCE);
 }
 
 export function closeMenu(ctx: DiagramContext) {

@@ -2,9 +2,14 @@ import { util, dia } from '@joint/core';
 
 export type NodeType = string;
 
+export type EdgeData = {
+    id: dia.Cell.ID;
+    label?: string;
+}
+
 export interface NodeData<T extends string = string> {
     type?: T;
-    to?: { id: dia.Cell.ID; label?: string }[];
+    to?: EdgeData[];
     [key: string]: any;
 }
 
@@ -25,9 +30,19 @@ export function removeEdge(json: DiagramData, parentId: dia.Cell.ID, childId: di
     }
 }
 
+export function changeEdge(json: DiagramData, parentId: dia.Cell.ID, childId: dia.Cell.ID, edge: Partial<EdgeData>) {
+    const parent = json.nodes[parentId];
+    if (!parent) return;
+    const index = parent.to.findIndex((target) => target.id === childId);
+    if (index > -1) {
+        const currentEdge = parent.to[index];
+        parent.to[index] = { ...currentEdge, ...edge };
+    }
+}
+
 export function insertNode(type: NodeType, json: DiagramData, parentId: dia.Cell.ID, childId: dia.Cell.ID) {
-    removeEdge(json, parentId, childId);
-    const nodeId = appendNode(type, json, parentId);
+    const nodeId = setNode(type, json);
+    changeEdge(json, parentId, childId, { id: nodeId });
     addEdge(json, nodeId, childId);
     return nodeId;
 }

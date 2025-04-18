@@ -6,7 +6,7 @@ import { closeMenu, openButtonMenu, openLinkButtonMenu, openPlaceholderMenu } fr
 
 import type { GrowthLimit, MakeElement, DiagramData, NodeData  } from './diagram-engine';
 import * as engineShapes from './diagram-engine/shapes';
-import * as paperOptions from "./diagram-engine/paper-options";
+import * as paperOptions from "./diagram-ui/paper-options";
 
 import { DiagramController } from "./diagram-ui/DiagramController";
 
@@ -35,7 +35,8 @@ type DiagramNode = typeof STEP_TYPE | typeof DECISION_TYPE | typeof END_TYPE;
 
 const json: DiagramData<DiagramNode> = {
     nodes: {
-        'start': { type: 'Step', to: [{ id: 'd' }] },
+        'start': { type: 'Step', to: [{ id: 'd' }], label: 'Start' },
+        'a': { type: 'Step', to: [{ id: 'd' }], label: 'Step 1' },
         'd': {
             type: 'Decision',
             to: [
@@ -45,17 +46,18 @@ const json: DiagramData<DiagramNode> = {
             ]
         },
         'g': { type: 'End' },
+        'f': { type: 'Step', label: 'Step 1' },
     },
 };
 
 const makeElement: MakeElement = (node: NodeData, id: string) => {
     switch (node.type) {
         case END_TYPE:
-            return End.create(id);
+            return End.create(id).attr('label/text', node.label || 'End');
         case DECISION_TYPE:
             return Decision.create(id).attr('label/text', node.label || 'Decision');
         case STEP_TYPE:
-            return Step.create(id);
+            return Step.create(id).attr('label/text', node.label || 'Step');
         default:
             throw new Error(`Unknown element type: ${node.type}`);
     }

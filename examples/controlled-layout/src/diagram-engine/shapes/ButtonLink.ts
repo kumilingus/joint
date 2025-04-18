@@ -1,4 +1,5 @@
 import { dia, shapes, util } from '@joint/core';
+import { PRIMARY_COLOR } from '../theme';
 
 export class ButtonLink extends shapes.standard.Link {
     defaults(): Partial<dia.Link.Attributes> {
@@ -10,8 +11,8 @@ export class ButtonLink extends shapes.standard.Link {
                     cursor: 'default',
                 },
                 line: {
-                    stroke: '#0075F2',
-                    strokeWidth: 2,
+                    stroke: PRIMARY_COLOR,
+                    strokeWidth: 1,
                     strokeDasharray: '5, 5',
                     targetMarker: null
                 }

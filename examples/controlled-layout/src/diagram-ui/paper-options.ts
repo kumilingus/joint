@@ -1,5 +1,10 @@
 import { g, dia, anchors, connectors, connectionStrategies } from '@joint/core';
-import { Button } from './shapes/Button';
+import { Button } from '../diagram-engine/shapes/Button';
+import { Link } from '../diagram-engine/shapes';
+import { PRIMARY_COLOR } from '../diagram-engine/theme';
+
+const LINK_SOURCE_ANCHOR_OFFSET = 25;
+const LINK_TARGET_ANCHOR_OFFSET = 20;
 
 export const magnetThreshold = 'onleave';
 export const clickThreshold = 10;
@@ -7,20 +12,14 @@ export const moveThreshold = 5;
 export const labelsLayer = true;
 export const snapLinks = true;
 
-// TODO: remove constants
-
 export const allowLink = (linkView: dia.LinkView) => {
-    const { model } = linkView;
-
-    const target = model.getTargetElement();
-    const source = model.getSourceElement();
-
+    const link = linkView.model;
+    const target = link.getTargetElement();
+    const source = link.getSourceElement();
     if (!source || !target) return false;
-
     // Forbid immediate parent-child connections
     if (source === target) return false;
-
-    return target.isElement() && !Button.isButton(target);
+    return !Button.isButton(target);
 }
 
 export const validateConnection = (cellViewS: dia.CellView, _magnetS: SVGElement, cellViewT: dia.CellView) => {
@@ -64,9 +63,10 @@ export const connectionStrategy: connectionStrategies.ConnectionStrategy = (end,
 
     if (endType === 'target') {
         end.anchor = {
-            name: 'top',
+            name: 'midSide',
             args: {
-                dy: -25
+                padding: LINK_TARGET_ANCHOR_OFFSET,
+                mode: 'horizontal'
             }
         };
         return end;
@@ -79,28 +79,49 @@ export const connectionStrategy: connectionStrategies.ConnectionStrategy = (end,
     end.anchor = {
         name: 'bottom',
         args: {
-            dy: 25
+            dy: LINK_SOURCE_ANCHOR_OFFSET,
         }
     }
 
     return end;
 };
 
-export const defaultConnector: connectors.Connector = (sourcePoint: g.Point, targetPoint: g.Point, routePoints: g.Point[]) => {
+export const defaultConnector: connectors.Connector = (sourcePoint: g.Point, targetPoint: g.Point, routePoints: g.Point[], _opt, linkView: dia.LinkView) => {
+    const link = linkView.model;
     const opt: connectors.StraightConnectorArguments = {
         cornerType: 'cubic',
         cornerRadius: 10,
     };
-    const offset = 20;
-    const targetTipPoint = targetPoint.clone().offset(0, offset);
-    const sourceTipPoint = sourcePoint.clone().offset(0, -25);
-    return connectors.straight(sourceTipPoint, targetTipPoint, [sourcePoint, ...routePoints, targetPoint], opt);
+
+    const midPoints = [sourcePoint];
+    const sourceTipPoint = sourcePoint.clone().move(linkView.sourceBBox.center(), -LINK_SOURCE_ANCHOR_OFFSET);
+
+    midPoints.push(...routePoints);
+
+    const targetTipPoint = targetPoint.clone();
+    if (link.getTargetCell()) {
+        // Don't move the target point if the link is being dragged
+        // (i.e. the target is not an element)
+        targetTipPoint.move(linkView.targetBBox.center(), -LINK_TARGET_ANCHOR_OFFSET);
+        midPoints.push(targetPoint);
+    }
+
+    return connectors.straight(sourceTipPoint, targetTipPoint, midPoints, opt);
 };
 
 export const defaultAnchor: anchors.AnchorJSON = {
     name: 'midSide',
     args: {
         mode: 'vertical',
-        padding: 25
+        padding: LINK_SOURCE_ANCHOR_OFFSET,
     }
 };
+
+export const defaultLink = () => new Link({
+    attrs: {
+        line: {
+            stroke: PRIMARY_COLOR,
+            strokeWidth: 2
+        }
+    }
+});

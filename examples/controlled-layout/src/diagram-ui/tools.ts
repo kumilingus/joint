@@ -40,7 +40,7 @@ export function addLinkHoverTools(ctx: DiagramContext, linkView: dia.LinkView) {
         `,
         distance: -40,
         action: () => {
-            paper.trigger('button:pointerclick', linkView);
+            paper.trigger('link:button:pointerclick', linkView);
         },
     });
 

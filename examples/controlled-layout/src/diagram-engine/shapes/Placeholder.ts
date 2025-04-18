@@ -1,4 +1,5 @@
 import { shapes, util, dia } from "@joint/core";
+import { PRIMARY_COLOR } from '../theme';
 
 export class Placeholder extends shapes.standard.Rectangle {
     defaults(): Partial<shapes.standard.RectangleAttributes> {
@@ -6,18 +7,20 @@ export class Placeholder extends shapes.standard.Rectangle {
             type: 'Placeholder',
             size: { width: 100, height: 30 },
             attrs: {
+                root: {
+                    cursor: 'pointer'
+                },
                 body: {
-                    stroke: '#0075F2',
+                    stroke: PRIMARY_COLOR,
                     strokeWidth: 2,
                     strokeDasharray: '5, 5',
                 },
                 label: {
-                    fill: "#333",
+                    text: 'placeholder',
+                    fill: PRIMARY_COLOR,
+                    opacity: 0.7,
                     fontSize: 10,
-                    fontFamily: "sans-serif",
-                    style: {
-                        textTransform: "capitalize"
-                    }
+                    fontFamily: "sans-serif"
                 }
             }
         }, super.defaults);
