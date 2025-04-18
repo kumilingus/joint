@@ -3,7 +3,8 @@ import { HIGHLIGHTER_COLOR } from './theme';
 
 export const effects = {
     CONNECTION_SOURCE: 'connection-source',
-    CONNECTION_TARGET: 'connection-target',
+    CONNECTION_PREVIEW: 'connection-target',
+    CONNECTION_CANDIDATE: 'connection-candidate',
     SIBLING: 'sibling'
 } as const;
 
@@ -19,13 +20,23 @@ export function addEffect(cellView: dia.CellView, effect: typeof effects[keyof t
                 }
             });
             break;
-        case effects.CONNECTION_TARGET:
-            highlighters.mask.add(cellView, selector, effects.CONNECTION_TARGET, {
+        case effects.CONNECTION_PREVIEW:
+            highlighters.mask.add(cellView, selector, effects.CONNECTION_PREVIEW, {
                 padding: 2,
                 attrs: {
                     stroke: HIGHLIGHTER_COLOR,
                     strokeWidth: 2,
-                    strokeDasharray: '5,3',
+                    strokeDasharray: '10,2',
+                }
+            });
+            break;
+        case effects.CONNECTION_CANDIDATE:
+            highlighters.stroke.add(cellView, selector, effects.CONNECTION_CANDIDATE, {
+                padding: 6,
+                attrs: {
+                    stroke: HIGHLIGHTER_COLOR,
+                    strokeWidth: 2,
+                    strokeDasharray: '2,2',
                 }
             });
             break;
@@ -33,7 +44,7 @@ export function addEffect(cellView: dia.CellView, effect: typeof effects[keyof t
             highlighters.opacity.add(cellView, 'root', effects.SIBLING, {
                 opacity: 0.7
             });
-
+            break;
     }
 }
 
@@ -42,8 +53,11 @@ export function removeEffect(paper: dia.Paper, effect: typeof effects[keyof type
         case effects.CONNECTION_SOURCE:
             highlighters.mask.removeAll(paper, effects.CONNECTION_SOURCE);
             break;
-        case effects.CONNECTION_TARGET:
-            highlighters.mask.removeAll(paper, effects.CONNECTION_TARGET);
+        case effects.CONNECTION_PREVIEW:
+            highlighters.mask.removeAll(paper, effects.CONNECTION_PREVIEW);
+            break;
+        case effects.CONNECTION_CANDIDATE:
+            highlighters.stroke.removeAll(paper, effects.CONNECTION_CANDIDATE);
             break;
         case effects.SIBLING:
             highlighters.opacity.removeAll(paper, effects.SIBLING);
@@ -51,16 +65,3 @@ export function removeEffect(paper: dia.Paper, effect: typeof effects[keyof type
     }
 }
 
-export function removeEffects(paper: dia.Paper, effect: typeof effects[keyof typeof effects]) {
-    switch (effect) {
-        case effects.CONNECTION_SOURCE:
-            highlighters.mask.removeAll(paper, effects.CONNECTION_SOURCE);
-            break;
-        case effects.CONNECTION_TARGET:
-            highlighters.mask.removeAll(paper, effects.CONNECTION_TARGET);
-            break;
-        case effects.SIBLING:
-            highlighters.opacity.removeAll(paper, effects.SIBLING);
-            break;
-    }
-}

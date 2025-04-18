@@ -78,13 +78,13 @@ function createExistingElementListItem(ctx: DiagramContext, parent: dia.Element,
     const elementView = element.findView(paper) as dia.ElementView;
     const item = createListItem(createBlankThumbnail(element.get('type')), String(element.id));
     item.addEventListener('mouseenter', () => {
-        addEffect(elementView, effects.CONNECTION_TARGET);
+        addEffect(elementView, effects.CONNECTION_PREVIEW);
     });
     item.addEventListener('mouseleave', () => {
-        removeEffect(paper, effects.CONNECTION_TARGET);
+        removeEffect(paper, effects.CONNECTION_PREVIEW);
     });
     item.addEventListener('click', () => {
-        removeEffect(paper, effects.CONNECTION_TARGET);
+        removeEffect(paper, effects.CONNECTION_PREVIEW);
         addEdge(ctx.json, parent.id, element.id);
         updateDiagram({ disableOptimalOrderHeuristic: true });
         closeMenu(ctx);

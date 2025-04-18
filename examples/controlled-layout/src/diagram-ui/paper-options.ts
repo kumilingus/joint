@@ -11,6 +11,7 @@ export const clickThreshold = 10;
 export const moveThreshold = 5;
 export const labelsLayer = true;
 export const snapLinks = true;
+export const markAvailable = true;
 
 export const allowLink = (linkView: dia.LinkView) => {
     const link = linkView.model;
@@ -50,7 +51,8 @@ export const interactive = (cellView: dia.CellView) => {
 }
 
 export const highlighting = {
-    [dia.CellView.Highlighting.CONNECTING]: false
+    [dia.CellView.Highlighting.CONNECTING]: false,
+    [dia.CellView.Highlighting.ELEMENT_AVAILABILITY]: false,
 };
 
 export const connectionStrategy: connectionStrategies.ConnectionStrategy = (end, endView, _endMagnet, _coords, _link, endType) => {

@@ -126,12 +126,23 @@ function onElementPointerClick(ctx: DiagramContext, elementView: dia.ElementView
 }
 
 function onCellHighlight(_context: DiagramContext, cellView: dia.CellView, _node: SVGElement, { type }: { type: dia.CellView.Highlighting }) {
-    if (type !== dia.CellView.Highlighting.CONNECTING) return;
-    addEffect(cellView, effects.CONNECTION_SOURCE);
+    switch (type) {
+        case dia.CellView.Highlighting.ELEMENT_AVAILABILITY:
+            addEffect(cellView, effects.CONNECTION_CANDIDATE);
+            break;
+        case dia.CellView.Highlighting.CONNECTING:
+            addEffect(cellView, effects.CONNECTION_SOURCE);
+            break;
+    }
 }
 
 function onCellUnhighlight({ paper }: DiagramContext, _cellView: dia.CellView, _node: SVGElement, { type }: { type: dia.CellView.Highlighting }) {
-    if (type !== dia.CellView.Highlighting.CONNECTING) return;
-
-    removeEffect(paper, effects.CONNECTION_SOURCE);
+    switch (type) {
+        case dia.CellView.Highlighting.ELEMENT_AVAILABILITY:
+            removeEffect(paper, effects.CONNECTION_CANDIDATE);
+            break;
+        case dia.CellView.Highlighting.CONNECTING:
+            removeEffect(paper, effects.CONNECTION_SOURCE);
+            break;
+    }
 }

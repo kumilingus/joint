@@ -2,7 +2,7 @@ import { type dia, mvc } from '@joint/core';
 import { Button } from '../diagram-engine/shapes';
 import { sortChildren } from '../diagram-engine';
 import type { DiagramContext } from './DiagramController';
-import { addEffect, removeEffects, effects } from './effects';
+import { addEffect, removeEffect, effects } from './effects';
 
 export function showOrderPreviewOnNextInteraction(ctx: DiagramContext) {
     const { paper, graph, json, updateDiagram } = ctx;
@@ -50,7 +50,7 @@ export function showOrderPreviewOnNextInteraction(ctx: DiagramContext) {
             const data = evt.data;
             if (!data.preview) return;
 
-            removeEffects(paper, effects.SIBLING);
+            removeEffect(paper, effects.SIBLING);
             paper.viewport.removeChild(data.preview);
 
             const element = elementView.model;
