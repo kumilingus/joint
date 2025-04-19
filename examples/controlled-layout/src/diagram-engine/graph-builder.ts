@@ -158,8 +158,7 @@ function updateButtons(graph: dia.Graph, growthLimit: GrowthLimit) {
 }
 
 function addLink(source: dia.Element, target: dia.Element, graph: dia.Graph, opt: any = {}) {
-    const LinkCtor = Button.isButton(target) ? ButtonLink : Link;
-    const link = new LinkCtor({
+    const link = new Link({
         id: `${source.id}-${target.id}`,
         source: { id: source.id },
         target: { id: target.id }
@@ -170,8 +169,11 @@ function addLink(source: dia.Element, target: dia.Element, graph: dia.Graph, opt
 
 function addButton(element: dia.Element, graph: dia.Graph, opt: any = {}) {
     const button = new Button();
-    graph.addCell(button, opt);
-    const link = addLink(element, button, graph, opt);
+    const link = new ButtonLink({
+        source: { id: element.id },
+        target: { id: button.id },
+    });
+    graph.addCells([button, link], opt);
     return [link, button];
 }
 
