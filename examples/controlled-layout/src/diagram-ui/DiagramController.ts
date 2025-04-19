@@ -128,6 +128,7 @@ function onElementPointerClick(ctx: DiagramContext, elementView: dia.ElementView
 function onCellHighlight(_context: DiagramContext, cellView: dia.CellView, _node: SVGElement, { type }: { type: dia.CellView.Highlighting }) {
     switch (type) {
         case dia.CellView.Highlighting.ELEMENT_AVAILABILITY:
+            if (Placeholder.isPlaceholder(cellView.model)) break;
             addEffect(cellView, effects.CONNECTION_CANDIDATE);
             break;
         case dia.CellView.Highlighting.CONNECTING:

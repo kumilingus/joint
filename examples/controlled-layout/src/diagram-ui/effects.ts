@@ -1,5 +1,5 @@
 import { dia, highlighters } from "@joint/core";
-import { HIGHLIGHTER_COLOR } from './theme';
+import { HIGHLIGHTER_COLOR, VALID_COLOR } from './theme';
 
 export const effects = {
     CONNECTION_SOURCE: 'connection-source',
@@ -31,12 +31,12 @@ export function addEffect(cellView: dia.CellView, effect: typeof effects[keyof t
             });
             break;
         case effects.CONNECTION_CANDIDATE:
-            highlighters.stroke.add(cellView, selector, effects.CONNECTION_CANDIDATE, {
-                padding: 6,
+            highlighters.mask.add(cellView, selector, effects.CONNECTION_CANDIDATE, {
+                padding: 0,
+                layer: dia.Paper.Layers.BACK,
                 attrs: {
-                    stroke: HIGHLIGHTER_COLOR,
-                    strokeWidth: 2,
-                    strokeDasharray: '2,2',
+                    stroke: VALID_COLOR,
+                    strokeWidth: 5
                 }
             });
             break;
@@ -57,7 +57,7 @@ export function removeEffect(paper: dia.Paper, effect: typeof effects[keyof type
             highlighters.mask.removeAll(paper, effects.CONNECTION_PREVIEW);
             break;
         case effects.CONNECTION_CANDIDATE:
-            highlighters.stroke.removeAll(paper, effects.CONNECTION_CANDIDATE);
+            highlighters.mask.removeAll(paper, effects.CONNECTION_CANDIDATE);
             break;
         case effects.SIBLING:
             highlighters.opacity.removeAll(paper, effects.SIBLING);

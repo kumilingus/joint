@@ -14,9 +14,11 @@ export class Placeholder extends shapes.standard.Rectangle {
                     stroke: PRIMARY_COLOR,
                     strokeWidth: 2,
                     strokeDasharray: '5, 5',
+                    rx: 2,
+                    ry: 2,
                 },
                 label: {
-                    text: 'placeholder',
+                    text: '',
                     fill: PRIMARY_COLOR,
                     opacity: 0.7,
                     fontSize: 10,

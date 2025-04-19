@@ -5,6 +5,8 @@ import { PRIMARY_COLOR } from '../diagram-engine/const';
 
 const LINK_SOURCE_ANCHOR_OFFSET = 25;
 const LINK_TARGET_ANCHOR_OFFSET = 20;
+const LINK_SOURCE_CONNECTOR_OFFSET = 25;
+const LINK_TARGET_CONNECTOR_OFFSET = 20;
 
 export const magnetThreshold = 'onleave';
 export const clickThreshold = 10;
@@ -21,7 +23,7 @@ export const allowLink = (linkView: dia.LinkView) => {
     // Forbid immediate parent-child connections
     if (source === target) return false;
     return !Button.isButton(target);
-}
+};
 
 export const validateConnection = (cellViewS: dia.CellView, _magnetS: SVGElement, cellViewT: dia.CellView) => {
 
@@ -48,7 +50,7 @@ export const interactive = (cellView: dia.CellView) => {
         addLinkFromMagnet: true,
         elementMove: false
     }
-}
+};
 
 export const highlighting = {
     [dia.CellView.Highlighting.CONNECTING]: false,
@@ -61,7 +63,7 @@ export const connectionStrategy: connectionStrategies.ConnectionStrategy = (end,
 
     end.connectionPoint = {
         name: 'anchor'
-    }
+    };
 
     if (endType === 'target') {
         end.anchor = {
@@ -74,15 +76,20 @@ export const connectionStrategy: connectionStrategies.ConnectionStrategy = (end,
         return end;
     }
 
-    const button = graph.getCell(end.id);
-    const [el] = graph.getNeighbors(button as dia.Element, { inbound: true });
-    // Reconnect the link dragged from the button to the parent element
-    end.id = el.id;
+    // endType === 'source'
+
     end.anchor = {
         name: 'bottom',
         args: {
             dy: LINK_SOURCE_ANCHOR_OFFSET,
         }
+    };
+
+    const button = graph.getCell(end.id);
+    const [el] = graph.getNeighbors(button as dia.Element, { inbound: true });
+    if (el) {
+        // Reconnect the link dragged from the button to the parent element
+        end.id = el.id;
     }
 
     return end;
@@ -95,16 +102,14 @@ export const defaultConnector: connectors.Connector = (sourcePoint: g.Point, tar
         cornerRadius: 10,
     };
 
-    const midPoints = [sourcePoint];
-    const sourceTipPoint = sourcePoint.clone().move(linkView.sourceBBox.center(), -LINK_SOURCE_ANCHOR_OFFSET);
-
-    midPoints.push(...routePoints);
-
+    const midPoints = [sourcePoint, ...routePoints];
+    const sourceTipPoint = sourcePoint.clone().move(linkView.sourceBBox.center(), -LINK_SOURCE_CONNECTOR_OFFSET);
     const targetTipPoint = targetPoint.clone();
+
     if (link.getTargetCell()) {
         // Don't move the target point if the link is being dragged
         // (i.e. the target is not an element)
-        targetTipPoint.move(linkView.targetBBox.center(), -LINK_TARGET_ANCHOR_OFFSET);
+        targetTipPoint.move(linkView.targetBBox.center(), -LINK_TARGET_CONNECTOR_OFFSET);
         midPoints.push(targetPoint);
     }
 
