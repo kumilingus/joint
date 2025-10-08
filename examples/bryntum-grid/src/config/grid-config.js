@@ -1,7 +1,7 @@
 import { util } from "@joint/core";
 import { Grid, GridRowModel, Store } from "@bryntum/grid";
 import { shapeKinds, colors } from "../constants";
-import { deleteRecords } from "../utils/grid-utils";
+import { deleteRow } from "../utils/grid-utils";
 
 export class LinkModel extends GridRowModel {
     static fields = [
@@ -117,7 +117,7 @@ const gridConfig = {
                     cls: "b-fa b-fa-trash",
                     tooltip: "Delete item",
                     onClick: async ({ grid, record }) => {
-                        deleteRecords(grid, [record]);
+                        deleteRow(grid, [record]);
                     },
                 },
             ],

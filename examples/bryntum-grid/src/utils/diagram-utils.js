@@ -7,24 +7,28 @@ export function syncDiagram(graph, gridRecords, action = 'update') {
     switch (action) {
         case 'update':
         case 'add':
-            updateRecords(graph, gridRecords);
+            updateCells(graph, gridRecords);
             break;
         case 'remove':
-            removeRecords(graph, gridRecords);
+            removeCells(graph, gridRecords);
             break;
         case 'batch':
             throw new Error('Not implemented');
         case 'filter':
-            return; // No action needed
+            break;
+        case 'removeall':
+            graph.resetCells([]);
+            break;
         default:
             throw new Error(`Unknown action: ${action}`);
     }
     // Perform layout
-    if (graph.getCells().length === 0) return;
-    DirectedGraph.layout(graph, {
-        rankDir: 'TB',
-        setVertices: true,
-    });
+    if (graph.getCells().length > 0) {
+        DirectedGraph.layout(graph, {
+            rankDir: 'TB',
+            setVertices: true,
+        });
+    }
     // Notify listeners that the graph has been updated
     graph.trigger('synced');
 }
@@ -51,6 +55,7 @@ export function zoomToFit(paper, { margin = 10 } = {}) {
     const bbox = paper.model.getBBox();
     if (!bbox) return;
     paper.transformToFitContent({
+        maxScale: 1,
         contentArea: bbox.inflate(margin),
         horizontalAlign: 'middle',
         verticalAlign: 'middle',
@@ -107,14 +112,14 @@ function getShapePath(kind, width, height) {
     return d;
 }
 
-function removeRecords(graph, gridRecords) {
+function removeCells(graph, gridRecords) {
     gridRecords.forEach((record) => {
         const cell = graph.getCell(record.id);
         if (cell) cell.remove();
     });
 }
 
-function updateRecords(graph, gridRecords) {
+function updateCells(graph, gridRecords) {
     const existingConnectionsMap = {};
     gridRecords.forEach((record) => {
         const recordId = `${record.id}`;

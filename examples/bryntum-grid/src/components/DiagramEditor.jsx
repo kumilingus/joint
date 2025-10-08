@@ -17,7 +17,7 @@ import { EditorLayout } from "./EditorLayout";
 import gridConfig from "../config/grid-config";
 import { colors, shapeKinds } from "../constants";
 import { syncDiagram } from "../utils/diagram-utils";
-import { addRow, deleteSelectedRecords } from "../utils/grid-utils";
+import { addRow, deleteSelectedRows, resetRows } from "../utils/grid-utils";
 
 
 function DiagramEditor({ initialData }) {
@@ -46,7 +46,28 @@ function DiagramEditor({ initialData }) {
   const onToolbarDeleteClick = useCallback(() => {
     const grid = gridRef.current?.instance;
     if (!grid) return;
-    deleteSelectedRecords(grid);
+    deleteSelectedRows(grid);
+  }, []);
+
+  const onToolbarResetClick = useCallback(() => {
+    const grid = gridRef.current?.instance;
+    if (!grid) return;
+    resetRows(grid, [
+      {
+        id: 1,
+        name: "Get Started",
+        kind: shapeKinds.Start,
+        color: colors.babyBlue,
+        connections: [{ id: 2 }],
+      },
+      {
+        id: 2,
+        name: "Action 1",
+        kind: shapeKinds.Action,
+        color: colors.peach,
+      }
+    ]);
+    grid.selectRow({ record: 2, scrollIntoView: true });
   }, []);
 
   // Grid handlers
@@ -108,8 +129,15 @@ function DiagramEditor({ initialData }) {
               onClick: onToolbarDeleteClick,
               disabled: selection.length === 0,
             },
-          ]}
-        />
+            {
+              type: "button",
+              text: "Reset",
+              icon: "b-fa-undo",
+              cls: 'b-raised',
+              tooltip: 'Reset diagram and grid to initial state',
+              onClick: onToolbarResetClick,
+            }]
+          }/>
       }
       left={
         <BryntumGrid

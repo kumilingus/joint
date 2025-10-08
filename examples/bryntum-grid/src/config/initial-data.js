@@ -20,7 +20,7 @@ const initialData = [
     },
     {
         id: 3,
-        name: 'Create Document',
+        name: 'Request Document',
         kind: shapeKinds.Action,
         color: colors.lightYellow,
         connections: [{ id: 6 }],

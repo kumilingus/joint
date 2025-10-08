@@ -12,7 +12,7 @@ export function addRow(grid, record) {
 }
 
 // TODO: fix batch update (results in multiple layout calls)
-export function deleteSelectedRecords(grid) {
+export function deleteSelectedRows(grid) {
     const { selectedRecords, store } = grid;
     if (!selectedRecords.length) return;
     // Select the next record (falling back to the previous one) after deletion
@@ -20,11 +20,11 @@ export function deleteSelectedRecords(grid) {
       selectedRecords[selectedRecords.length - 1],
     );
     const prevRecord = store.getPrev(selectedRecords[0]);
-    deleteRecords(grid, selectedRecords);
+    deleteRow(grid, selectedRecords);
     grid.selectRow({ record: nextRecord || prevRecord, scrollIntoView: true });
 }
 
-export function deleteRecords(grid, records = []) {
+export function deleteRow(grid, records = []) {
     const { store } = grid;
     // Remove references to the deleted records from other records' connections
     // store.beginBatch(); // Not working as expected
@@ -35,4 +35,10 @@ export function deleteRecords(grid, records = []) {
     });
     store.remove(records);
     // store.endBatch(); // Not working as expected
+}
+
+export function resetRows(grid, data = []) {
+    const { store } = grid;
+    store.removeAll();
+    store.add(data);
 }
