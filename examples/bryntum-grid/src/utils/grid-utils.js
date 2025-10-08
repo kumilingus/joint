@@ -1,6 +1,8 @@
 
+import { util } from "@joint/core";
+
 export function addRow(grid, record) {
-    const [newRecord] = grid.store.add(record);
+    const [newRecord] = grid.store.add({ id: util.uuid(), ...record });
     const selected = grid.selectedRecords;
     if (selected?.length) {
       // Add connection from the last selected record to the new one
@@ -41,4 +43,13 @@ export function resetRows(grid, data = []) {
     const { store } = grid;
     store.removeAll();
     store.add(data);
+}
+
+export function connectRows(connectionsGrid, targetRecords) {
+  targetRecords.forEach((record) => {
+      if (connectionsGrid.store.getById(record.id)) return;
+      connectionsGrid.store.add({
+          id: record.id,
+      });
+  });
 }

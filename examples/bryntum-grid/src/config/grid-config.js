@@ -1,7 +1,7 @@
 import { util } from "@joint/core";
-import { Grid, GridRowModel, Store } from "@bryntum/grid";
+import { Grid, GridRowModel, Store, Toast } from "@bryntum/grid";
 import { shapeKinds, colors } from "../constants";
-import { deleteRow } from "../utils/grid-utils";
+import { connectRows, deleteRow } from "../utils/grid-utils";
 
 export class LinkModel extends GridRowModel {
     static fields = [
@@ -152,7 +152,6 @@ const gridConfig = {
     rowExpanderFeature: {
         tooltip: "Show connections",
         refreshOnRecordChange: true,
-        // columnPosition: 'last',
         // The widget config declares what type of Widget will be created on each expand
         widget: {
             type: "connections-grid",
@@ -169,14 +168,15 @@ const gridConfig = {
                         const grid = source.up("grid");
                         const connectionsGrid = source.up("connections-grid");
                         const selected = grid.selectedRecords;
-                        if (!selected?.length) return;
-                        selected.forEach((record) => {
-                            if (connectionsGrid.store.getById(record.id))
-                                return;
-                            connectionsGrid.store.add({
-                                id: record.id,
+                        if (!selected?.length) {
+                            Toast.show({
+                                html: "Select an element to connect in the main grid first",
+                                color: "orange",
+                                side: "top",
                             });
-                        });
+                            return;
+                        }
+                        connectRows(connectionsGrid, selected);
                     },
                 },
             ],
