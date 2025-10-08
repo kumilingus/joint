@@ -29,14 +29,14 @@ export function deleteSelectedRows(grid) {
 export function deleteRow(grid, records = []) {
     const { store } = grid;
     // Remove references to the deleted records from other records' connections
-    // store.beginBatch(); // Not working as expected
+    store.beginBatch();
     store.forEach((record) => {
       if (records.find((rec) => rec.id === record.id)) return;
       const connectionStore = record.get("connections");
       connectionStore.remove(records.map((rec) => rec.id));
     });
     store.remove(records);
-    // store.endBatch(); // Not working as expected
+    store.endBatch();
 }
 
 export function resetRows(grid, data = []) {

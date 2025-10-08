@@ -13,7 +13,8 @@ export function syncDiagram(graph, gridRecords, action = 'update') {
             removeCells(graph, gridRecords);
             break;
         case 'batch':
-            throw new Error('Not implemented');
+            updateCells(graph, gridRecords, { isRefresh: true });
+            break;
         case 'filter':
             break;
         case 'removeall':
@@ -119,12 +120,19 @@ function removeCells(graph, gridRecords) {
     });
 }
 
-function updateCells(graph, gridRecords) {
+function updateCells(graph, gridRecords, { isRefresh = false } = {}) {
     const existingConnectionsMap = {};
+    const existingElementsMap = graph.getElements().reduce((map, element) => {
+        map[element.id] = element;
+        return map;
+    }, {});
     gridRecords.forEach((record) => {
         const recordId = `${record.id}`;
         const cell = graph.getCell(recordId);
         const bodyColor = record.color || '#FFFFFF';
+        // Remove from existing elements map
+        // to track which elements are still present
+        delete existingElementsMap[recordId];
         // If the cell already exists, update its attributes
         if (cell) {
             // Update existing cell
@@ -212,7 +220,11 @@ function updateCells(graph, gridRecords) {
             link.labels(labels);
             link.attr('line/stroke', color || LINK_COLOR);
         });
-        // Remove links that are no longer valid
-        Object.values(existingConnectionsMap).forEach((link) => link.remove());
     });
+    // Remove links that are no longer valid
+    Object.values(existingConnectionsMap).forEach((link) => link.remove());
+    // Remove elements that are no longer valid
+    if (isRefresh) {
+        Object.values(existingElementsMap).forEach((element) => element.remove());
+    }
 }

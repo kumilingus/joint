@@ -23,12 +23,30 @@ import { addRow, deleteSelectedRows, resetRows } from "../utils/grid-utils";
 function DiagramEditor({ initialData }) {
   const gridRef = React.useRef();
   const graph = useGraph();
-  const [data, setData] = useState(initialData);
   const [selection, setSelection] = useState([]);
 
-  // On initial load, populate the diagram from the grid data
   useEffect(() => {
-    syncDiagram(graph, gridRef.current?.instance?.store?.records);
+    const grid = gridRef.current?.instance;
+    if (!grid) return;
+
+    // On initial load, populate the diagram from the grid data
+    syncDiagram(graph, grid.store?.records);
+
+    // Any subsequent changes to the grid data
+    // should also be reflected in the diagram
+    grid.store.on('refresh', ({ action, records }) => {
+      syncDiagram(graph, records, action);
+    });
+    grid.store.on('change', ({ action, records }) => {
+      syncDiagram(graph, records, action);
+      // TODO: How to refresh the subgrid after data change?
+      // gridRef.current.instance.subGrids.normal.grid.refreshColumn('id')
+    });
+
+    return () => {
+      grid.store?.off('refresh');
+      grid.store?.off('change');
+    }
   }, [graph]);
 
   // Toolbar handlers
@@ -71,13 +89,6 @@ function DiagramEditor({ initialData }) {
   }, []);
 
   // Grid handlers
-
-  const onGridDataChange = ({ store, action, records }) => {
-    setData(store.data);
-    syncDiagram(graph, records, action);
-    // TODO: How to refresh the subgrid after data change?
-    // gridRef.current.instance.subGrids.normal.grid.refreshColumn('id')
-  };
 
   const onGridSelectionChange = (data) => {
     setSelection(data.selected.map((record) => record.id));
@@ -143,8 +154,7 @@ function DiagramEditor({ initialData }) {
         <BryntumGrid
           ref={gridRef}
           {...gridConfig}
-          data={data}
-          onDataChange={onGridDataChange}
+          data={initialData}
           onSelectionChange={onGridSelectionChange}
           onRowExpand={onGridRowExpand}
         />
