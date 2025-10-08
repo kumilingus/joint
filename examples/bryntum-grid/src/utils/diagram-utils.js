@@ -6,6 +6,7 @@ export function syncDiagram(graph, gridRecords, action = 'update') {
     // Update the diagram based on the grid records and the action performed
     switch (action) {
         case 'update':
+        case 'add':
             updateRecords(graph, gridRecords);
             break;
         case 'remove':
@@ -13,6 +14,8 @@ export function syncDiagram(graph, gridRecords, action = 'update') {
             break;
         case 'batch':
             throw new Error('Not implemented');
+        case 'filter':
+            return; // No action needed
         default:
             throw new Error(`Unknown action: ${action}`);
     }
@@ -166,28 +169,43 @@ function updateRecords(graph, gridRecords) {
         }
         // Add connections
         const connections = record.get('connections') || [];
-        connections.forEach((targetId) => {
+        connections.forEach(({ id: targetId, label, color }) => {
             const linkId = `link-${record.id}-${targetId}`;
             delete existingConnectionsMap[linkId];
-            if (graph.getCell(linkId)) {
-                // No update for links for now
-                return;
-            }
-            // Add new link
-            graph.addCell(
-                new shapes.standard.Link({
+            let link = graph.getCell(linkId);
+            if (!link) {
+                // Add new link
+                link = new shapes.standard.Link({
                     id: linkId,
                     z: 1,
                     source: { id: record.id },
                     target: { id: targetId },
+                    labelSize: { width: 100, height: 30 },
                     attrs: {
                         root: {
                             pointerEvents: 'none',
-                        },
-                        line: { stroke: LINK_COLOR, strokeWidth: 2 },
+                        }
                     },
-                })
-            );
+                });
+                graph.addCell(link);
+            }
+            // Update existing link
+            const labels = [];
+            if (label) {
+                labels.push({
+                    position: 0.5,
+                    attrs: {
+                        text: {
+                            text: label,
+                            fill: TEXT_COLOR,
+                            fontSize: 18,
+                            fontFamily: 'Arial, sans-serif',
+                        }
+                    }
+                });
+            }
+            link.labels(labels);
+            link.attr('line/stroke', color || LINK_COLOR);
         });
         // Remove links that are no longer valid
         Object.values(existingConnectionsMap).forEach((link) => link.remove());

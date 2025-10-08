@@ -10,13 +10,14 @@ import {
   BryntumGrid,
   BryntumToolbar,
 } from "@bryntum/grid-react";
+import { Grid, GridRowModel, Store } from '@bryntum/grid';
 
 import { DiagramPanel, DiagramCanvas } from "./Diagram";
 import { EditorLayout } from "./EditorLayout";
 import gridConfig from "../config/grid-config";
 import { colors, shapeKinds } from "../constants";
 import { syncDiagram } from "../utils/diagram-utils";
-import { addRow, deleteSelectedRows } from "../utils/grid-utils";
+import { addRow, deleteSelectedRecords } from "../utils/grid-utils";
 
 
 function DiagramEditor({ initialData }) {
@@ -45,7 +46,7 @@ function DiagramEditor({ initialData }) {
   const onToolbarDeleteClick = useCallback(() => {
     const grid = gridRef.current?.instance;
     if (!grid) return;
-    deleteSelectedRows(grid);
+    deleteSelectedRecords(grid);
   }, []);
 
   // Grid handlers
@@ -53,21 +54,21 @@ function DiagramEditor({ initialData }) {
   const onGridDataChange = ({ store, action, records }) => {
     setData(store.data);
     syncDiagram(graph, records, action);
-  };
-
-  const onGridBeforeCellEditStart = ({ editorContext }) => {
-    const { record, column, editor, grid } = editorContext;
-    if (column.field === "connections") {
-      // dynamically set options based on current grid data
-      editor.store.data = grid.store.data.map(({ id, name }) => {
-        const text = id === record.id ? `${name} (self)` : name;
-        return { id, text };
-      });
-    }
+    // TODO: How to refresh the subgrid after data change?
+    // gridRef.current.instance.subGrids.normal.grid.refreshColumn('id')
   };
 
   const onGridSelectionChange = (data) => {
     setSelection(data.selected.map((record) => record.id));
+  };
+
+  const onGridRowExpand = ({ record }) => {
+    const grid = gridRef.current?.instance;
+    if (!grid) return;
+    grid.store.records.forEach((rec) => {
+      if (rec.id === record.id) return;
+      grid.features.rowExpander.collapse(grid.store.getById(rec.id));
+    });
   };
 
   // Diagram handlers
@@ -93,11 +94,17 @@ function DiagramEditor({ initialData }) {
             {
               type: "button",
               text: "Add",
+              icon: "b-icon-add",
+              cls: 'b-raised',
+              tooltip: 'Add new element and connect it to the selected element',
               onClick: onToolbarAddClick,
             },
             {
               type: "button",
               text: "Delete",
+              icon: "b-icon-trash",
+              cls: 'b-raised',
+              tooltip: 'Delete selected elements',
               onClick: onToolbarDeleteClick,
               disabled: selection.length === 0,
             },
@@ -111,7 +118,7 @@ function DiagramEditor({ initialData }) {
           data={data}
           onDataChange={onGridDataChange}
           onSelectionChange={onGridSelectionChange}
-          onBeforeCellEditStart={onGridBeforeCellEditStart}
+          onRowExpand={onGridRowExpand}
         />
       }
       right={

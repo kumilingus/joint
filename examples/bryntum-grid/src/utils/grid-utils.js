@@ -5,37 +5,34 @@ export function addRow(grid, record) {
     if (selected?.length) {
       // Add connection from the last selected record to the new one
       const lastSelected = selected[selected.length - 1];
-      const connections = lastSelected.connections
-        ? [...lastSelected.connections]
-        : [];
-      connections.push(newRecord.id);
-      lastSelected.set("connections", connections);
+      const connectionStore = lastSelected.connections
+      connectionStore.add({ id: newRecord.id });
     }
     grid.selectRow({ record: newRecord, scrollIntoView: true });
 }
 
 // TODO: fix batch update (results in multiple layout calls)
-export function deleteSelectedRows(grid) {
+export function deleteSelectedRecords(grid) {
     const { selectedRecords, store } = grid;
     if (!selectedRecords.length) return;
-    // Remove references to the deleted records from other records' connections
-    // store.beginBatch(); // Not working as expected
-    store.forEach((record) => {
-      if (selectedRecords.find((rec) => rec.id === record.id)) return;
-      const connections = record.connections ? [...record.connections] : [];
-      const updatedConnections = connections.filter(
-        (id) => !selectedRecords.find((rec) => rec.id === id),
-      );
-      if (connections.length !== updatedConnections.length) {
-        record.set("connections", updatedConnections);
-      }
-    });
     // Select the next record (falling back to the previous one) after deletion
     const nextRecord = store.getNext(
       selectedRecords[selectedRecords.length - 1],
     );
     const prevRecord = store.getPrev(selectedRecords[0]);
-    store.remove(selectedRecords);
-    // store.endBatch(); // Not working as expected
+    deleteRecords(grid, selectedRecords);
     grid.selectRow({ record: nextRecord || prevRecord, scrollIntoView: true });
+}
+
+export function deleteRecords(grid, records = []) {
+    const { store } = grid;
+    // Remove references to the deleted records from other records' connections
+    // store.beginBatch(); // Not working as expected
+    store.forEach((record) => {
+      if (records.find((rec) => rec.id === record.id)) return;
+      const connectionStore = record.get("connections");
+      connectionStore.remove(records.map((rec) => rec.id));
+    });
+    store.remove(records);
+    // store.endBatch(); // Not working as expected
 }
