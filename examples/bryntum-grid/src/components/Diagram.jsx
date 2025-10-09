@@ -59,8 +59,8 @@ function DiagramCanvas({
                 }}
                 onLinkPointerDblClick={({ linkView }) => {
                     onLinkEditStart?.({
-                        elementId: linkView.model.getSourceCell().id,
-                        linkId: linkView.model.getTargetCell().id
+                        sourceId: linkView.model.getSourceCell().id,
+                        targetId: linkView.model.getTargetCell().id
                     });
                 }}
             />

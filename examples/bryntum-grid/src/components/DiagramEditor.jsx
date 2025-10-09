@@ -127,19 +127,14 @@ function DiagramEditor({ initialData }) {
     grid.startEditing({ record, field: 'name' });
   }
 
-  const onDiagramLinkEditStart = ({ elementId, linkId }) => {
+  const onDiagramLinkEditStart = ({ sourceId }) => {
     const grid = gridRef.current?.instance;
     if (!grid) return;
-    const record = grid.store.getById(elementId);
+    const record = grid.store.getById(sourceId);
     if (!record) return;
     grid.scrollRowIntoView({ record });
     grid.features.rowExpander.expand(record);
-    const connectionsGrid = grid.subGrids.normal.grid;
-    const linkRecord = connectionsGrid.store.getById(linkId);
-    if (linkRecord) {
-      connectionsGrid.startEditing({ record: linkRecord, field: 'label' });
-      return;
-    }
+    // How to start editing a specific item in the subgrid?
   }
 
   return (

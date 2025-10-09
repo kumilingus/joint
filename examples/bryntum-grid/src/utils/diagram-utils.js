@@ -127,7 +127,7 @@ function updateCells(graph, gridRecords, { isRefresh = false } = {}) {
         return map;
     }, {});
     gridRecords.forEach((record) => {
-        const recordId = `${record.id}`;
+        const recordId = record.id;
         const cell = graph.getCell(recordId);
         const bodyColor = record.color || '#FFFFFF';
         // Remove from existing elements map
@@ -182,7 +182,7 @@ function updateCells(graph, gridRecords, { isRefresh = false } = {}) {
         }
         // Add connections
         const connections = record.get('connections') || [];
-        connections.forEach(({ id: targetId, label, color }) => {
+        connections.forEach(({ targetId, label, color }) => {
             const linkId = `link-${record.id}-${targetId}`;
             delete existingConnectionsMap[linkId];
             let link = graph.getCell(linkId);

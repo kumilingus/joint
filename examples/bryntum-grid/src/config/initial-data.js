@@ -6,7 +6,7 @@ const initialData = [
         name: 'Get Started',
         kind: shapeKinds.Start,
         color: colors.babyBlue,
-        connections: [{ id: 2 }],
+        connections: [{ id: 'c1-2', targetId: 2 }],
     },
     {
         id: 2,
@@ -14,8 +14,8 @@ const initialData = [
         kind: shapeKinds.Decision,
         color: colors.peach,
         connections: [
-            { id: 3, label: 'No'  },
-            { id: 6, label: 'Yes' }
+            { id: 'c2-3', targetId: 3, label: 'No'  },
+            { id: 'c2-6', targetId: 6, label: 'Yes' }
         ],
     },
     {
@@ -23,28 +23,28 @@ const initialData = [
         name: 'Request Document',
         kind: shapeKinds.Action,
         color: colors.lightYellow,
-        connections: [{ id: 6 }],
+        connections: [{ id: 'c3-6', targetId: 6 }],
     },
     {
         id: 4,
         name: 'Reject',
         kind: shapeKinds.Action,
         color: colors.roseTint,
-        connections: [{ id: 7 }],
+        connections: [{ id: 'c4-7', targetId: 7 }],
     },
     {
         id: 5,
         name: 'Approve',
         kind: shapeKinds.Action,
         color: colors.mintGreen,
-        connections: [{ id: 7 }],
+        connections: [{ id: 'c5-7', targetId: 7 }],
     },
     {
         id: 6,
         name: 'Review Document',
         kind: shapeKinds.Document,
         color: colors.lavender,
-        connections: [{ id: 4 }, { id: 5 }],
+        connections: [{ id: 'c6-4', targetId: 4 }, { id: 'c6-5', targetId: 5 }],
     },
     {
         id: 7,

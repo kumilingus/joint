@@ -1,6 +1,5 @@
-import { util } from "@joint/core";
 import { Grid, GridRowModel, Store, Toast } from "@bryntum/grid";
-import { shapeKinds, colors } from "../constants";
+import { shapeKinds, colorPalette, darkColorPalette } from "../constants";
 import { connectRows, deleteRow } from "../utils/grid-utils";
 
 export class LinkModel extends GridRowModel {
@@ -27,13 +26,6 @@ export class ElementModel extends GridRowModel {
         },
     ];
 }
-
-const colorPalette = Object.keys(colors).map((name) => {
-    return {
-        color: colors[name],
-        text: util.toKebabCase(name).replace(/-/g, " "),
-    };
-});
 
 const gridConfig = {
     columns: [
@@ -79,8 +71,8 @@ const gridConfig = {
                 // TODO: implement custom model for record
                 // and add `name` field to the connection object that
                 // will automatically read from the referenced record
-                const chips = connectionStore.map(({ id }) => {
-                    const targetRecord = grid.store.getById(id);
+                const chips = connectionStore.map(({ targetId }) => {
+                    const targetRecord = grid.store.getById(targetId);
                     return {
                         text: targetRecord.get("name"),
                         color: targetRecord.get("color"),
@@ -210,8 +202,8 @@ class ConnectionsGrid extends Grid {
                 flex: 1,
                 editor: false,
                 renderer: ({ record, grid }) => {
-                    const toId = record.get("id");
-                    const targetRecord = grid.owner.store.getById(toId);
+                    const targetId = record.get("targetId");
+                    const targetRecord = grid.owner.store.getById(targetId);
                     return [
                         {
                             tag: "b",
@@ -252,7 +244,7 @@ class ConnectionsGrid extends Grid {
                 text: "Color",
                 field: "color",
                 width: 70,
-                colors: colorPalette,
+                colors: darkColorPalette,
             },
             {
                 type: "action",

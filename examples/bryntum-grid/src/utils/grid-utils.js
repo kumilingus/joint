@@ -33,7 +33,10 @@ export function deleteRow(grid, records = []) {
     store.forEach((record) => {
       if (records.find((rec) => rec.id === record.id)) return;
       const connectionStore = record.get("connections");
-      connectionStore.remove(records.map((rec) => rec.id));
+      const connectionsToRemove = connectionStore.records.filter((connection) => {
+          return records.find((rec) => rec.id === connection.targetId);
+      });
+      connectionStore.remove(connectionsToRemove);
     });
     store.remove(records);
     store.endBatch();
@@ -49,7 +52,8 @@ export function connectRows(connectionsGrid, targetRecords) {
   targetRecords.forEach((record) => {
       if (connectionsGrid.store.getById(record.id)) return;
       connectionsGrid.store.add({
-          id: record.id,
+          id: util.uuid(),
+          targetId: record.id,
       });
   });
 }
