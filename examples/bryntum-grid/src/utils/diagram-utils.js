@@ -194,11 +194,6 @@ function updateCells(graph, gridRecords, { isRefresh = false } = {}) {
                     source: { id: record.id },
                     target: { id: targetId },
                     labelSize: { width: 100, height: 30 },
-                    attrs: {
-                        root: {
-                            pointerEvents: 'none',
-                        }
-                    },
                 });
                 graph.addCell(link);
             }

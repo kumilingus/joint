@@ -13,7 +13,12 @@ import { selectElements, zoomToFit } from '../utils/diagram-utils';
 import { useContainerSize } from '../hooks/useContainerSize';
 import logo from '../assets/joint.svg';
 
-function DiagramCanvas({ onSelectionChange, selection = [] }) {
+function DiagramCanvas({
+    onSelectionChange,
+    onElementEditStart,
+    onLinkEditStart,
+    selection = []
+}) {
 
     const [containerRef, { width, height }] = useContainerSize();
     const paper = usePaper();
@@ -46,7 +51,18 @@ function DiagramCanvas({ onSelectionChange, selection = [] }) {
                 onElementPointerClick={({ elementView }) => {
                     onSelectionChange?.([elementView.model.id]);
                 }}
-                onBlankPointerClick={() => onSelectionChange?.([])}
+                onBlankPointerClick={() => {
+                    onSelectionChange?.([]);
+                }}
+                onElementPointerDblClick={({ elementView }) => {
+                    onElementEditStart?.({ elementId: elementView.model.id });
+                }}
+                onLinkPointerDblClick={({ linkView }) => {
+                    onLinkEditStart?.({
+                        elementId: linkView.model.getSourceCell().id,
+                        linkId: linkView.model.getTargetCell().id
+                    });
+                }}
             />
         </div>
     );

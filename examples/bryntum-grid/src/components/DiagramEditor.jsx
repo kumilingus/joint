@@ -118,6 +118,30 @@ function DiagramEditor({ initialData }) {
     setSelection(ids);
   };
 
+  const onDiagramElementEditStart = ({ elementId }) => {
+    const grid = gridRef.current?.instance;
+    if (!grid) return;
+    const record = grid.store.getById(elementId);
+    if (!record) return;
+    grid.scrollRowIntoView({ record });
+    grid.startEditing({ record, field: 'name' });
+  }
+
+  const onDiagramLinkEditStart = ({ elementId, linkId }) => {
+    const grid = gridRef.current?.instance;
+    if (!grid) return;
+    const record = grid.store.getById(elementId);
+    if (!record) return;
+    grid.scrollRowIntoView({ record });
+    grid.features.rowExpander.expand(record);
+    const connectionsGrid = grid.subGrids.normal.grid;
+    const linkRecord = connectionsGrid.store.getById(linkId);
+    if (linkRecord) {
+      connectionsGrid.startEditing({ record: linkRecord, field: 'label' });
+      return;
+    }
+  }
+
   return (
     <EditorLayout
       toolbar={
@@ -163,6 +187,8 @@ function DiagramEditor({ initialData }) {
         <DiagramPanel>
           <DiagramCanvas
             onSelectionChange={onDiagramSelectionChange}
+            onElementEditStart={onDiagramElementEditStart}
+            onLinkEditStart={onDiagramLinkEditStart}
             selection={selection}
           />
         </DiagramPanel>
