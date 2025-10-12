@@ -8,7 +8,10 @@ export function addRow(grid, record) {
       // Add connection from the last selected record to the new one
       const lastSelected = selected[selected.length - 1];
       const connectionStore = lastSelected.connections
-      connectionStore.add({ id: newRecord.id });
+      connectionStore.add({
+        id: util.uuid(),
+        targetId: newRecord.id
+      });
     }
     grid.selectRow({ record: newRecord, scrollIntoView: true });
 }

@@ -1,31 +1,85 @@
-import { Grid, GridRowModel, Store, Toast } from "@bryntum/grid";
+import { Grid, Toast } from "@bryntum/grid";
 import { shapeKinds, colorPalette, darkColorPalette } from "../constants";
 import { connectRows, deleteRow } from "../utils/grid-utils";
+import { ElementModel, LinkModel } from "../models";
 
-export class LinkModel extends GridRowModel {
-    static fields = [
-        "id", // id of the target element
-        "label",
-        "color",
-    ];
+
+class ConnectionsGrid extends Grid {
+    static $name = "ConnectionsGrid";
+    static type = "connections-grid";
+
+    static configurable = {
+        autoHeight: true, // The Grid will adjust its height to fit all rows
+        emptyText: "No connections",
+        columns: [
+            {
+                text: "Target",
+                field: "id",
+                flex: 1,
+                editor: false,
+                renderer: ({ record, grid }) => {
+                    const targetId = record.get("targetId");
+                    const targetRecord = grid.owner.store.getById(targetId);
+                    return [
+                        {
+                            tag: "b",
+                            text: "→",
+                            style: { marginRight: "5px" },
+                        },
+                        {
+                            tag: "span",
+                            text: `${targetRecord.get("name")}`,
+                            className: "b-chip",
+                            style: {
+                                background: targetRecord.get("color"),
+                            },
+                        },
+                    ];
+                },
+            },
+            {
+                text: "Label",
+                field: "label",
+                flex: 1,
+                editor: {
+                    type: "textfield",
+                },
+                renderer: ({ value }) => {
+                    if (value) return value;
+                    return [
+                        {
+                            tag: "i",
+                            text: "No label",
+                            style: { color: "#AAA" },
+                        },
+                    ];
+                },
+            },
+            {
+                type: "color",
+                text: "Color",
+                field: "color",
+                width: 70,
+                colors: darkColorPalette,
+            },
+            {
+                type: "action",
+                width: 45,
+                actions: [
+                    {
+                        cls: "b-fa b-fa-trash",
+                        tooltip: "Delete item",
+                        onClick: async ({ record }) => {
+                            record.remove();
+                        },
+                    },
+                ],
+            },
+        ],
+    };
 }
 
-export class ElementModel extends GridRowModel {
-    static fields = [
-        "id",
-        "name",
-        "kind",
-        "color",
-        // This is the field from which the expanded ConnectionsGrid will get its data
-        // The type "store" means that this field has a number of records in itself
-        {
-            name: "connections",
-            type: "store",
-            storeClass: Store,
-            modelClass: LinkModel,
-        },
-    ];
-}
+ConnectionsGrid.initClass();
 
 const gridConfig = {
     columns: [
@@ -184,82 +238,3 @@ const gridConfig = {
 
 export default gridConfig;
 
-class ConnectionsGrid extends Grid {
-    static $name = "ConnectionsGrid";
-    static type = "connections-grid";
-
-    static configurable = {
-        autoHeight: true, // The Grid will adjust its height to fit all rows
-        emptyText: "No connections",
-        // selectionMode : {
-        //     checkbox     : true, // Adds a checkbox column that lets the user select rows
-        //     showCheckAll : true // Adds a checkbox to the checkbox column header that lets the user check/uncheck all rows
-        // },
-        columns: [
-            {
-                text: "Target",
-                field: "id",
-                flex: 1,
-                editor: false,
-                renderer: ({ record, grid }) => {
-                    const targetId = record.get("targetId");
-                    const targetRecord = grid.owner.store.getById(targetId);
-                    return [
-                        {
-                            tag: "b",
-                            text: "→",
-                            style: { marginRight: "5px" },
-                        },
-                        {
-                            tag: "span",
-                            text: `${targetRecord.get("name")}`,
-                            className: "b-chip",
-                            style: {
-                                background: targetRecord.get("color"),
-                            },
-                        },
-                    ];
-                },
-            },
-            {
-                text: "Label",
-                field: "label",
-                flex: 1,
-                editor: {
-                    type: "textfield",
-                },
-                renderer: ({ value }) => {
-                    if (value) return value;
-                    return [
-                        {
-                            tag: "i",
-                            text: "No label",
-                            style: { color: "#AAA" },
-                        },
-                    ];
-                },
-            },
-            {
-                type: "color",
-                text: "Color",
-                field: "color",
-                width: 70,
-                colors: darkColorPalette,
-            },
-            {
-                type: "action",
-                width: 45,
-                actions: [
-                    {
-                        cls: "b-fa b-fa-trash",
-                        tooltip: "Delete item",
-                        onClick: async ({ record }) => {
-                            record.remove();
-                        },
-                    },
-                ],
-            },
-        ],
-    };
-}
-ConnectionsGrid.initClass();
