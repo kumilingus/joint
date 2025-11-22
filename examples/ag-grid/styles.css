@@ -1,0 +1,17 @@
+ body {
+     height: 100%;
+     display: flex;
+     justify-content: center;
+     align-items: center;
+     margin: 0;
+     overflow-y: hidden;
+     flex-wrap: wrap;
+     flex-direction: row;
+     justify-content: flex-start;
+ }
+
+ body > * {
+     flex: 1;
+     height: 100%;
+     border-radius: 8px;
+ }
