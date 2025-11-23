@@ -166,18 +166,16 @@ const edgeGridOptions: GridOptions<IEdgeRow> = {
                 button.innerText = 'Delete';
                 button.addEventListener('click', () => {
                     const rowId = params.data.id;
-                    const transaction = {
-                        remove: [params.data],
-                        update: [] as INodeRow[],
-                    };
                     const parentRowNode = gridApi.getRowNode(expandedRowId!);
                     if (parentRowNode) {
                         const connections: IConnection[] = parentRowNode.data.connections || [];
                         const updatedConnections = connections.filter(conn => conn.id !== rowId);
-                        parentRowNode.data.connections = updatedConnections;
-                        transaction.update.push(parentRowNode.data);
+                        if (updatedConnections.length !== connections.length) {
+                            gridApi.applyTransaction({
+                                update: [{ ...parentRowNode.data, connections: updatedConnections }]
+                            });
+                        }
                     }
-                    params.api.applyTransaction(transaction);
                 });
                 return button;
             },
@@ -219,6 +217,8 @@ const nodeGridOptions: GridOptions<INodeRow> = {
     rowData: initialData,
 
     alwaysShowVerticalScroll: true,
+    undoRedoCellEditing: true,
+    undoRedoCellEditingLimit: 20,
 
     masterDetail: true,
     isRowMaster: () => true,
@@ -409,6 +409,7 @@ paper.on('link:connect', (linkView) => {
 
 window.addEventListener('resize', () => {
     gridApi.sizeColumnsToFit();
+    zoomToFit(paper);
 });
 
 // Initial size to fit columns
