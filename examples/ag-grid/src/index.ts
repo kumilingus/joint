@@ -386,6 +386,7 @@ paper.on('blank:pointerdblclick', () => {
         connections: [],
     };
     gridApi.applyTransaction({ add: [newNode] });
+    gridApi.getRowNode(newNode.id)?.setSelected(true, true);
 });
 
 paper.on('link:connect', (linkView) => {
