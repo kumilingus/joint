@@ -191,12 +191,16 @@ export function updateGraph<
     elementToGraphSelector({
       element: element as Element,
       graph,
+      // @ts-ignore
+      defaultSelector: () => defaultElementToGraphSelector({ element, graph })
     })
   );
   const linkItems = links.map((link) =>
     linkToGraphSelector({
       link: link as Link,
       graph,
+      // @ts-ignore
+      defaultSelector: () => defaultLinkToGraphSelector({ link, graph }),
     })
   );
 

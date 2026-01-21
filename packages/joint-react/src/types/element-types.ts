@@ -62,4 +62,6 @@ export interface GraphElement {
    * Optional angle of the element.
    */
   angle?: number;
+
+  z?: number;
 }

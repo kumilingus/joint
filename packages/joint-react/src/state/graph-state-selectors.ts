@@ -1,4 +1,4 @@
-/* eslint-disable sonarjs/cognitive-complexity */
+
 import { util, type dia } from '@joint/core';
 import type { GraphElement } from '../types/element-types';
 import type { GraphLink } from '../types/link-types';
@@ -9,6 +9,7 @@ import { REACT_LINK_TYPE } from '../models/react-link';
 export interface ElementToGraphOptions<Element extends GraphElement> {
   readonly element: Element;
   readonly graph: dia.Graph;
+  readonly defaultSelector: () => Element;
 }
 
 export interface GraphToElementOptions<Element extends GraphElement> {
@@ -20,6 +21,7 @@ export interface GraphToElementOptions<Element extends GraphElement> {
 export interface LinkToGraphOptions<Link extends GraphLink> {
   readonly link: Link;
   readonly graph: dia.Graph;
+  readonly defaultSelector: () => Link;
 }
 
 export interface GraphToLinkOptions<Link extends GraphLink> {
@@ -35,6 +37,8 @@ export type LinkFromGraphSelector<Link extends GraphLink> = (
 export interface GraphStateSelectors<Element extends GraphElement, Link extends GraphLink> {
   readonly elementToGraphSelector?: (options: ElementToGraphOptions<Element>) => dia.Cell.JSON;
   readonly linkToGraphSelector?: (options: LinkToGraphOptions<Link>) => dia.Cell.JSON;
+  readonly graphToElementSelector?: (options: GraphToElementOptions<Element>) => Element;
+  readonly graphToLinkSelector?: (options: GraphToLinkOptions<Link>) => Link;
 }
 
 /**
@@ -106,18 +110,25 @@ export function defaultElementToGraphSelector<Element extends GraphElement>(
   options: ElementToGraphOptions<Element>
 ): dia.Cell.JSON {
   const { element } = options;
-  const { type = REACT_TYPE, x, y, width, height } = element;
-  const model: dia.Cell.JSON = {
-    type,
-    ...element,
+  const { id, x, y, width, height, angle, z, ...rest } = element;
+  const attributes: dia.Cell.JSON = {
+    id,
+    type: REACT_TYPE,
+    data: rest,
   };
   if (x !== undefined && y !== undefined) {
-    model.position = { x, y };
+    attributes.position = { x, y };
   }
   if (width !== undefined && height !== undefined) {
-    model.size = { width, height };
+    attributes.size = { width, height };
   }
-  return model;
+  if (angle !== undefined) {
+    attributes.angle = angle;
+  }
+  if (z !== undefined) {
+    attributes.z = z;
+  }
+  return attributes;
 }
 
 /**
@@ -186,18 +197,21 @@ export function defaultGraphToElementSelector<Element extends GraphElement>(
 ): GraphElement {
   const { cell, previous } = options;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { size, position, data, attrs, type, ...attributes } = cell.attributes;
+
+  const { size, position, angle, z, data } = cell.attributes;
   const cellData: Record<string, unknown> = {
-    ...attributes,
+    z,
+    angle,
+    ...data,
     ...position,
     ...size,
     id: cell.id,
-    ports: cell.get('ports'),
+    // ports: cell.get('ports'),
   };
-  if (type !== REACT_TYPE) {
-    cellData.type = type;
-  }
+
+  // if (type !== REACT_TYPE) {
+  //   cellData.type = type;
+  // }
 
   // If previous state exists, filter to only include properties that exist in previous state
   // This ensures state shape is the source of truth

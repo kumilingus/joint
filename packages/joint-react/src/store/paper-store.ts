@@ -150,9 +150,10 @@ export class PaperStore {
     const hasRenderElement = renderElement !== undefined;
     this.ReactElementView = dia.ElementView.extend({
       renderMarkup() {
-        const ele: HTMLElement = this.vel;
         // add magnet false to the element
-        ele.setAttribute('magnet', 'false');
+        this.el.setAttribute('magnet', 'false');
+        const selectors = this.selectors = {} as Record<string, SVGElement | SVGElement[]>;
+        selectors[this.selector] = this.el;
       },
       onRender() {
         // eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
