@@ -803,6 +803,7 @@ export class GraphStore {
         .unregisterPaperUpdate;
       unregister?.();
     }
+    paperStore?.paper.remove();
     this.papers.delete(id);
     this.internalState.setState((previous) => {
       const newPapers: Record<string, PaperStoreSnapshot> = {};
@@ -1302,8 +1303,8 @@ export class GraphStore {
         continue;
       }
 
-      elementView.cleanNodesCache();
-      this.clearConnectedLinkViews(paper, cellId, onValidateLink);
+      // elementView.cleanNodesCache();
+      // this.clearConnectedLinkViews(paper, cellId, onValidateLink);
     }
   };
 

@@ -28,12 +28,22 @@ export type {
  * ```
  */
 export const ReactElementView = dia.ElementView.extend({
-  renderMarkup() {
-    const ele: HTMLElement = this.vel;
-    ele.setAttribute('magnet', 'false');
-    const selectors = (this.selectors = {} as Record<string, SVGElement | SVGElement[]>);
-    selectors[this.selector] = this.el;
-  },
+  // renderMarkup() {
+  //   const ele: HTMLElement = this.vel;
+  //   ele.setAttribute('magnet', 'false');
+  //   const selectors = (this.selectors = {} as Record<string, SVGElement | SVGElement[]>);
+  //   selectors[this.selector] = this.el;
+  // },
+
+    renderMarkup: function() {
+
+        var element = this.model;
+        var markup = element.get('markup') || element.markup || [];
+        // if (!markup) throw new Error('dia.ElementView: markup required');
+        if (Array.isArray(markup)) return this.renderJSONMarkup(markup);
+        // if (typeof markup === 'string') return this.renderStringMarkup(markup);
+        throw new Error('dia.ElementView: invalid markup');
+    },
   onRender() {
     // eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
     const view: dia.ElementView = this;

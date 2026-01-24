@@ -28,94 +28,114 @@ export type {
  * ```
  */
 export const ReactLinkView = dia.LinkView.extend({
-  onRender() {
-    // eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
-    const view: dia.LinkView = this;
-    const paper = view.paper as ReactPaper;
-    const { reactLinkCache, reactLinkGraphStore } = paper;
+  confirmUpdate(flags: number, opt = {}): number {
 
-    const linkId = view.model.id as dia.Cell.ID;
-    reactLinkCache.linkViews = {
-      ...reactLinkCache.linkViews,
-      [linkId]: view,
-    };
-    reactLinkGraphStore.flushPendingUpdates();
-    reactLinkGraphStore.schedulePaperUpdate();
+    console.log('ReactLinkView confirmUpdate', this.model.id, flags);
+    // Call the original confirmUpdate method
+    const { source: { id: sourceId }, target: { id: targetId }} = this.model.attributes;
+    // @todo: account for placeholder views
+    const sourceView = this.paper.findViewByModel(sourceId as dia.Cell.ID);
+    const targetView = this.paper.findViewByModel(targetId as dia.Cell.ID);
+    if (sourceView.el.children.length === 0 || targetView.el.children.length === 0) {
+      // postpone the update
+      // console.log('Postponing link update', this.model.id);
+      // this._sourceMagnet = null; // reset cached source magnet
+      // this._targetMagnet = null; // reset cached target magnet
+      // sourceView.cleanNodesCache();
+      // targetView.cleanNodesCache();
+      return flags;
+    }
+    console.log('Proceeding with link update', this.model.id);
+    return dia.LinkView.prototype.confirmUpdate.call(this, flags, opt);
   },
-  renderLabels() {
-    // @ts-expect-error renderLabels exists on LinkView but not in types
-    dia.LinkView.prototype.renderLabels.call(this);
+  // onRender() {
+  //   // eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
+  //   const view: dia.LinkView = this;
+  //   const paper = view.paper as ReactPaper;
+  //   const { reactLinkCache, reactLinkGraphStore } = paper;
 
-    // eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
-    const view: dia.LinkView = this;
-    const paper = view.paper as ReactPaper;
-    const { reactLinkCache, reactLinkGraphStore, reactLinkPaperStore } = paper;
+  //   const linkId = view.model.id as dia.Cell.ID;
+  //   reactLinkCache.linkViews = {
+  //     ...reactLinkCache.linkViews,
+  //     [linkId]: view,
+  //   };
+  //   reactLinkGraphStore.flushPendingUpdates();
+  //   reactLinkGraphStore.schedulePaperUpdate();
+  // },
+  // renderLabels() {
+  //   // @ts-expect-error renderLabels exists on LinkView but not in types
+  //   dia.LinkView.prototype.renderLabels.call(this);
 
-    const linkId = view.model.id as dia.Cell.ID;
-    const link = view.model;
-    // @ts-expect-error we use private jointjs api
-    const labelCache: Record<number, SVGElement> = view._labelCache;
-    // @ts-expect-error we use private jointjs api
-    const labelSelectors: Record<number, Record<string, SVGElement>> = view._labelSelectors;
+  //   // eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
+  //   const view: dia.LinkView = this;
+  //   const paper = view.paper as ReactPaper;
+  //   const { reactLinkCache, reactLinkGraphStore, reactLinkPaperStore } = paper;
 
-    if (!labelCache || !labelSelectors) {
-      return this;
-    }
+  //   const linkId = view.model.id as dia.Cell.ID;
+  //   const link = view.model;
+  //   // @ts-expect-error we use private jointjs api
+  //   const labelCache: Record<number, SVGElement> = view._labelCache;
+  //   // @ts-expect-error we use private jointjs api
+  //   const labelSelectors: Record<number, Record<string, SVGElement>> = view._labelSelectors;
 
-    const newLinksData = { ...reactLinkCache.linksData };
-    let isChanged = false;
+  //   if (!labelCache || !labelSelectors) {
+  //     return this;
+  //   }
 
-    const existingLabelIds = new Set<string>();
-    for (const labelId in reactLinkCache.linksData) {
-      if (labelId.startsWith(`${linkId}-label-`)) {
-        existingLabelIds.add(labelId);
-      }
-    }
+  //   const newLinksData = { ...reactLinkCache.linksData };
+  //   let isChanged = false;
 
-    const linkLabels = link.isLink() ? link.labels() : [];
-    for (const labelIndex in labelCache) {
-      const index = Number.parseInt(labelIndex, 10);
-      const label = linkLabels[index];
+  //   const existingLabelIds = new Set<string>();
+  //   for (const labelId in reactLinkCache.linksData) {
+  //     if (labelId.startsWith(`${linkId}-label-`)) {
+  //       existingLabelIds.add(labelId);
+  //     }
+  //   }
 
-      if (!label || !('labelId' in label)) {
-        continue;
-      }
+  //   const linkLabels = link.isLink() ? link.labels() : [];
+  //   for (const labelIndex in labelCache) {
+  //     const index = Number.parseInt(labelIndex, 10);
+  //     const label = linkLabels[index];
 
-      const portalElement = labelCache[index];
-      if (!portalElement) {
-        continue;
-      }
+  //     if (!label || !('labelId' in label)) {
+  //       continue;
+  //     }
 
-      const linkLabelId = reactLinkPaperStore.getLinkLabelId(linkId, index);
-      existingLabelIds.delete(linkLabelId);
+  //     const portalElement = labelCache[index];
+  //     if (!portalElement) {
+  //       continue;
+  //     }
 
-      if (util.isEqual(newLinksData[linkLabelId], portalElement)) {
-        continue;
-      }
-      if (!portalElement.isConnected) {
-        continue;
-      }
-      isChanged = true;
-      newLinksData[linkLabelId] = portalElement;
-    }
+  //     const linkLabelId = reactLinkPaperStore.getLinkLabelId(linkId, index);
+  //     existingLabelIds.delete(linkLabelId);
 
-    if (existingLabelIds.size > 0) {
-      const hasRenderedLabels = Object.keys(labelCache).length > 0;
-      const linkHasLabels = link.isLink() && link.labels().length > 0;
-      if (hasRenderedLabels || !linkHasLabels) {
-        for (const removedLabelId of existingLabelIds) {
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          delete newLinksData[removedLabelId];
-        }
-        isChanged = true;
-      }
-    }
+  //     if (util.isEqual(newLinksData[linkLabelId], portalElement)) {
+  //       continue;
+  //     }
+  //     if (!portalElement.isConnected) {
+  //       continue;
+  //     }
+  //     isChanged = true;
+  //     newLinksData[linkLabelId] = portalElement;
+  //   }
 
-    if (isChanged && !util.isEqual(reactLinkCache.linksData, newLinksData)) {
-      reactLinkCache.linksData = newLinksData;
-      reactLinkGraphStore.schedulePaperUpdate();
-    }
+  //   if (existingLabelIds.size > 0) {
+  //     const hasRenderedLabels = Object.keys(labelCache).length > 0;
+  //     const linkHasLabels = link.isLink() && link.labels().length > 0;
+  //     if (hasRenderedLabels || !linkHasLabels) {
+  //       for (const removedLabelId of existingLabelIds) {
+  //         // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  //         delete newLinksData[removedLabelId];
+  //       }
+  //       isChanged = true;
+  //     }
+  //   }
 
-    return this;
-  },
+  //   if (isChanged && !util.isEqual(reactLinkCache.linksData, newLinksData)) {
+  //     reactLinkCache.linksData = newLinksData;
+  //     reactLinkGraphStore.schedulePaperUpdate();
+  //   }
+
+  //   return this;
+  // },
 });
