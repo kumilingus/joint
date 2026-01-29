@@ -26,6 +26,7 @@ export class ReactElement<Attributes = dia.Element.Attributes> extends dia.Eleme
     return {
       ...super.defaults,
       type: REACT_TYPE,
+      markup: [],
     } as unknown as dia.Element.Attributes & Attributes;
   }
 }

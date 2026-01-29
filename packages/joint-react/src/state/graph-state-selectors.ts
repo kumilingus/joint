@@ -187,52 +187,52 @@ export function createDefaultLinkMapper<Link extends GraphLink>(
       id,
       source: linkSource,
       target: linkTarget,
-      attrs,
-      type = REACT_LINK_TYPE,
+      // attrs,
+      // type = REACT_LINK_TYPE,
       z,
-      markup,
-      defaultLabel,
-      labels,
-      vertices,
-      router,
-      connector,
+      // markup,
+      // defaultLabel,
+      // labels,
+      // vertices,
+      // router,
+      // connector,
       ...userData
     } = data;
 
     const source = getTargetOrSource(linkSource);
     const target = getTargetOrSource(linkTarget);
 
-    const typeClass = util.getByPath(graph.layerCollection.cellNamespace, type, '.');
-    const defaults = typeClass
-      ? util.result(typeClass.prototype, 'defaults', {})
-      : {};
+    // const typeClass = util.getByPath(graph.layerCollection.cellNamespace, type, '.');
+    // const defaults = typeClass
+    //   ? util.result(typeClass.prototype, 'defaults', {})
+    //   : {};
 
-    const existingCell = graph.getCell(id);
-    const existingAttributes = existingCell?.isLink() ? existingCell.attr() : {};
+    // const existingCell = graph.getCell(id);
+    // const existingAttributes = existingCell?.isLink() ? existingCell.attr() : {};
 
-    const mergedAttributes = util.defaultsDeep({}, attrs || {}, existingAttributes, defaults.attrs);
+    // const mergedAttributes = util.defaultsDeep({}, attrs || {}, existingAttributes, defaults.attrs);
 
-    const model: dia.Cell.JSON = {
+    const attributes: dia.Cell.JSON = {
       id,
-      type: data.type ?? REACT_LINK_TYPE,
+      type: 'standard.Link',
       source,
       target,
-      attrs: mergedAttributes as dia.Cell.Selectors,
+      // attrs: mergedAttributes as dia.Cell.Selectors,
     };
 
-    if (z !== undefined) model.z = z;
-    if (markup !== undefined) model.markup = markup;
-    if (defaultLabel !== undefined) model.defaultLabel = defaultLabel;
-    if (labels !== undefined) model.labels = labels;
-    if (vertices !== undefined) model.vertices = vertices;
-    if (router !== undefined) model.router = router;
-    if (connector !== undefined) model.connector = connector;
+    if (z !== undefined) attributes.z = z;
+    // if (markup !== undefined) model.markup = markup;
+    // if (defaultLabel !== undefined) model.defaultLabel = defaultLabel;
+    // if (labels !== undefined) model.labels = labels;
+    // if (vertices !== undefined) model.vertices = vertices;
+    // if (router !== undefined) model.router = router;
+    // if (connector !== undefined) model.connector = connector;
 
-    if (Object.keys(userData).length > 0) {
-      model.data = userData;
-    }
+    // if (Object.keys(userData).length > 0) {
+    attributes.data = userData;
+    // }
 
-    return model;
+    return attributes;
   };
 }
 

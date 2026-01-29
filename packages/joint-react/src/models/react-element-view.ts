@@ -27,13 +27,13 @@ export type {
  * paper.reactElementPaperStore = paperStore;
  * ```
  */
-export const ReactElementView = dia.ElementView.extend({
-  renderMarkup() {
-    const ele: HTMLElement = this.vel;
-    ele.setAttribute('magnet', 'false');
-    const selectors = (this.selectors = {} as Record<string, SVGElement | SVGElement[]>);
-    selectors[this.selector] = this.el;
-  },
+export const ReactElementView: typeof dia.ElementView<dia.Element> = dia.ElementView.extend({
+  // renderMarkup() {
+  //   const ele: HTMLElement = this.vel;
+  //   ele.setAttribute('magnet', 'false');
+  //   const selectors = (this.selectors = {} as Record<string, SVGElement | SVGElement[]>);
+  //   selectors[this.selector] = this.el;
+  // },
   onRender() {
     // eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
     const view: dia.ElementView = this;
