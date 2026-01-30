@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr create:*)",
+      "Bash(npm run test-ts:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(npm test:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor\\(dia.Cell\\): remove unnecessary filter in getEmbeddedCells\n\nThe hierarchy index is always in sync with the graph, so filtering\nout undefined values is unnecessary and could hide bugs.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx jest:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(yarn jest:*)"
+    ]
+  }
+}
