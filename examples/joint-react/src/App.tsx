@@ -1,478 +1,396 @@
-import { dia, linkTools, shapes } from '@joint/core';
+import { dia, highlighters, g, V } from '@joint/core';
 import './index.css';
 import {
-    createElements,
-    createLinks,
     GraphProvider,
-    Highlighter,
-    MeasuredNode,
     Paper,
-    Port,
-    useCellId,
     useGraph,
     usePaper,
-    useUpdateElement,
+    useNodeSize,
+    useNodeLayout,
     type GraphElement,
+    type GraphLink,
     type PaperProps,
     type RenderElement,
+    ReactElementView,
+    PaperStore,
+    ReactLinkView,
+    type MarkerPreset,
 } from '@joint/react';
-import { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+
+// ============================================================================
+// Types & Constants
+// ============================================================================
 
 const PAPER_CLASSNAME =
   'border-1 border-gray-300 rounded-lg shadow-md overflow-hidden p-2 mr-2';
-const LIGHT = '#DDE6ED';
-// Define the class name for the paper
-const BUTTON_CLASSNAME =
-  'bg-blue-500 cursor-pointer hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm flex items-center';
 
-// Define types for the elements
-interface ElementBase extends GraphElement {
-  readonly elementType: 'alert' | 'info' | 'table';
+const MINIMAP_WIDTH = 200;
+const MINIMAP_HEIGHT = 150;
+
+interface ElementData extends GraphElement {
+  readonly type?: 'default' | 'error' | 'info';
+  readonly title?: string;
+  readonly color?: string;
+  readonly jjType?: string;
 }
 
-interface MessageElement extends ElementBase {
-  readonly elementType: 'alert' | 'info';
-  readonly title: string;
-  readonly description: string;
-  readonly inputText: string;
+interface LinkData extends GraphLink {
+  readonly className?: string;
+  readonly jjType?: string;
 }
 
-interface TableElement extends ElementBase {
-  readonly elementType: 'table';
-  readonly columnNames: string[];
-  readonly rows: string[][];
-}
-
-type Element = MessageElement | TableElement;
-
-type ElementWithSelected<T> = { readonly isSelected: boolean } & T;
-
-// Define static properties for the paper - used by minimap and main paper
-const PAPER_PROPS: PaperProps<Element> = {
-    defaultRouter: {
-        name: 'rightAngle',
+const PAPER_PROPS: PaperProps<ElementData> = {
+    defaultAnchor: {
+        name: 'midSide',
         args: {
-            margin: 25,
+            rotate: true,
+            useModelGeometry: true,
+        }
+    },
+    defaultConnectionPoint: {
+        name: 'anchor',
+        args: {
+            offset: 0,
+            useModelGeometry: true,
         },
     },
     defaultConnector: {
         name: 'straight',
-        args: { cornerType: 'line', cornerPreserveAspectRatio: true },
+        args: {
+            cornerType: 'line',
+            cornerPreserveAspectRatio: true,
+            useModelGeometry: true,
+        },
     },
-    snapLinks: { radius: 25 },
-    validateMagnet: (_cellView, magnet) => {
-        return magnet.getAttribute('magnet') !== 'passive';
+    defaultRouter: {
+        name: 'rightAngle',
+        args: {
+            direction: 'right',
+            useModelGeometry: true,
+        },
     },
-    sorting: dia.Paper.sorting.APPROX,
-    linkPinning: false,
-    onLinkMouseEnter: ({ linkView }) => linkView.addTools(toolsView),
-    onLinkMouseLeave: ({ linkView }) => linkView.removeTools(),
+    measureNode: (node, view) => {
+        if (node === view.el && view instanceof ReactElementView) {
+            return new g.Rect(view.model.size());
+        }
+        return V(node).getBBox();
+    }
 };
 
-// Create initial elements and links with typing support
-const elements = createElements<Element>([
-    {
-        id: '1',
-        x: 50,
-        y: 110,
-        elementType: 'alert',
-        title: 'This is error element',
-        description:
-      'This is longer text, it can be any message provided by the user',
-        inputText: 'Node Text',
-    },
-    {
-        id: '2',
-        x: 550,
-        y: 110,
-        elementType: 'info',
-        title: 'This is info element',
-        description:
-      'This is longer text, it can be any message provided by the user',
-        inputText: '',
-    },
-    {
-        id: '3',
-        x: 50,
-        y: 370,
-        elementType: 'table',
-        columnNames: ['Column 1', 'Column 2', 'Column 3'],
-        rows: [
-            ['Row 1', 'Row 2', 'Row 3'],
-            ['Row 4', 'Row 5', 'Row 6'],
-            ['Row 7', 'Row 8', 'Row 9'],
-        ],
-        inputText: '',
-        width: 400,
-        height: 200,
-        attrs: {
-            root: {
-                magnet: false,
-            },
-        },
-    },
-]);
+// ============================================================================
+// Data
+// ============================================================================
 
-// Create initial links from table element port to another element
-const links = createLinks([
+const elements: ElementData[] = [
+    { id: '1', x: 50, y: 110, angle: 30, title: 'This is error element' },
+    { id: '2', x: 550, y: 110, title: 'This is info element' },
+    { id: '3', x: 50, y: 370, color: '#f87171' },
+    {
+        id: '4',
+        x: 550,
+        y: 370,
+        width: 100,
+        height: 150,
+        jjType: 'standard.Cylinder',
+        color: '#60a5fa',
+    },
+];
+
+// Links now use built-in theme properties: color, width, sourceMarker, targetMarker
+const links: LinkData[] = [
+    {
+        id: 'link1',
+        source: { id: '1' },
+        target: { id: '2' },
+        width: 4,
+        color: 'orange',
+        targetMarker: 'arrow' as MarkerPreset,
+        className: 'dashed-link',
+    },
     {
         id: 'link2',
-        source: { id: '3', port: 'out-3-0' }, // Port from table element
-        target: { id: '1' },
-        attrs: {
-            line: {
-                stroke: LIGHT,
-                class: 'link',
-                strokeWidth: 2,
-                strokeDasharray: '5,5',
-                targetMarker: {
-                    d: 'M 0 0 L 8 4 L 8 -4 Z', // Larger arrowhead
-                },
-            },
-        },
+        source: { id: '3' },
+        target: { id: '4' },
+        color: 'green',
+        sourceMarker: 'circle' as MarkerPreset,
+        targetMarker: 'cross' as MarkerPreset,
     },
-]);
+    {
+        id: 'link3',
+        source: { id: '2' },
+        target: { id: '4' },
+        jjType: 'standard.ShadowLink',
+        color: 'purple',
+    },
+];
 
-// Define the message component
-function MessageComponent({
-    elementType,
-    title,
-    description,
-    inputText,
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function nodeSizeToModelSize({
+    x,
+    y,
     width,
     height,
-    isSelected,
-}: ElementWithSelected<MessageElement>) {
-    let iconContent;
-    let titleText;
-    switch (elementType) {
-        case 'alert': {
-            iconContent = (
-                <i className="fa-solid fa-triangle-exclamation text-rose-500 text-3xl mt-2"></i>
-            );
-            titleText = <span className="text-rose-500 font-bold">{title}</span>;
-            break;
-        }
-        default: {
-            iconContent = <i className="fa-solid fa-circle-info text-3xl mt-2"></i>;
-            titleText = <span className="font-bold">{title}</span>;
-            break;
-        }
-    }
-    const id = useCellId();
-    const setMessage = useUpdateElement<MessageElement>(id, 'inputText');
-    return (
-        <Highlighter.Stroke
-            padding={10}
-            rx={5}
-            ry={5}
-            strokeWidth={3}
-            stroke={LIGHT}
-            isHidden={!isSelected}
-        >
-            <foreignObject width={width} height={height} overflow="visible">
-                <MeasuredNode>
-                    <div className="flex flex-row border-1 border-solid border-white/20 text-white rounded-lg p-4 min-w-[250px] min-h-[100px] bg-gray-900 shadow-sm">
-                        <div className="flex flex-col gap-2">
-                            <div className="flex flex-row gap-2 items-start">
-                                <div className="text-2xl">{iconContent}</div>
-                                <div className="text-lg ml-2">
-                                    {titleText}
-                                    <div className="text-sm mt-1">{description}</div>
-                                </div>
-                            </div>
-                            {/* Divider */}
-                            <div className="border-1 border-dashed border-rose-white mt-2 opacity-10" />
-                            <input
-                                type="text"
-                                value={inputText}
-                                className="w-full border-1 border-solid border-rose-white rounded-lg p-2 mt-3"
-                                placeholder="Type here..."
-                                onChange={({ target: { value }}) => {
-                                    setMessage(value);
-                                }}
-                            />
-                        </div>
-                    </div>
-                </MeasuredNode>
-            </foreignObject>
-        </Highlighter.Stroke>
-    );
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+    const padding = 20;
+    return {
+        x,
+        y,
+        width: width + padding,
+        height: height + padding,
+    };
 }
 
-const ROW_HEIGHT = 45;
-const ROW_START = 65;
-// Define the table element
-function TableElement({
-    columnNames,
-    rows,
-    width,
-    height,
-    isSelected,
-}: ElementWithSelected<TableElement>) {
-    const cellId = useCellId();
+// ============================================================================
+// Shapes
+// ============================================================================
+
+function Shape({
+    color = 'lightgray',
+    title = 'No Title',
+}: {
+  color?: string;
+  title?: string;
+}) {
+    const textRef = useRef<SVGTextElement>(null);
+    const { width, height } = useNodeSize(textRef, {
+        transform: nodeSizeToModelSize,
+    });
+
     return (
         <>
-            <Highlighter.Stroke
-                padding={25}
-                rx={5}
-                ry={5}
-                strokeWidth={3}
-                stroke={LIGHT}
-                isHidden={!isSelected}
+            <ellipse
+                rx={width / 2}
+                ry={height / 2}
+                cx={width / 2}
+                cy={height / 2}
+                fill={color}
+            />
+            <text
+                ref={textRef}
+                x={width / 2}
+                y={height / 2}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                style={{ fontSize: 14, fill: 'black' }}
             >
-                <foreignObject width={width} height={height} overflow="visible">
-                    <div
-                        style={{ width, height }}
-                        className="flex flex-col border-1 border-solid border-white/20 text-white rounded-lg p-4 w-full h-full bg-gray-900 shadow-sm"
-                    >
-                        <table className="w-full">
-                            <thead>
-                                <tr>
-                                    {columnNames.map((name) => (
-                                        <th key={name} className="text-left p-2">
-                                            {name}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {rows.map((row, index) => (
-                                    <tr key={index}>
-                                        {row.map((cell, cellIndex) => (
-                                            <td
-                                                key={cellIndex}
-                                                className="p-2 border-t border-white/20 border-dashed"
-                                            >
-                                                {cell}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </foreignObject>
-            </Highlighter.Stroke>
-            <Port.Group position="right" id="out" dx={-10}>
-                {rows.map((_, index) => (
-                    <Port.Item
-                        key={index}
-                        id={`out-${cellId}-${index}`}
-                        y={index * ROW_HEIGHT + ROW_START}
-                    >
-                        <foreignObject width={20} height={20} overflow="visible">
-                            <div className="flex flex-col items-center justify-center bg-white rounded-full w-5 h-5">
-                                <i className="fa-solid fa-arrow-right text-black text-sm"></i>
-                            </div>
-                        </foreignObject>
-                    </Port.Item>
-                ))}
-            </Port.Group>
+                {title}
+            </text>
         </>
     );
 }
 
-// Minimap component
-function MiniMap() {
-    const renderElement: RenderElement<Element> = useCallback(
-        ({ width, height }) => (
-            <rect width={width} height={height} fill={'white'} rx={10} ry={10} />
-        ),
+function MinimapShape({ color = 'lightgray' }: { color?: string }) {
+    const layout = useNodeLayout();
+    if (!layout) return null;
+
+    const { width, height } = layout;
+    return <rect width={width} height={height} fill={color} rx={10} ry={10} />;
+}
+
+// ============================================================================
+// Minimap
+// ============================================================================
+
+function MiniMap({ paper }: { paper: dia.Paper }) {
+    const renderElement: RenderElement<ElementData> = useCallback(
+        ({ color = 'white' }) => <MinimapShape color={color} />,
         [],
     );
-    // On change, the minimap will be resized to fit the content automatically
-    const onElementReady = useCallback(({ paper }: { paper: dia.Paper }) => {
-        const { model: graph } = paper;
-        paper.transformToFitContent({
-            contentArea: graph.getCellsBBox(graph.getElements()) ?? undefined,
-            verticalAlign: 'middle',
-            horizontalAlign: 'middle',
-            padding: 20,
-        });
-    }, []);
+
+    const [scale, setScale] = useState(1);
+
+    useEffect(() => {
+        const { width, height } = paper.getComputedSize();
+        const nextScale = Math.min(MINIMAP_WIDTH / width, MINIMAP_HEIGHT / height);
+        setScale(nextScale);
+    }, [paper]);
 
     return (
-        <div className="absolute bg-black bottom-6 right-6 w-[200px] h-[150px] border border-[#dde6ed] rounded-lg overflow-hidden">
+        <div
+            className="absolute bg-black bottom-6 right-6 border border-[#dde6ed] rounded-lg overflow-hidden"
+            style={{ width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT }}
+        >
             <Paper
                 {...PAPER_PROPS}
                 interactive={false}
-                width={'100%'}
+                width="100%"
+                height="100%"
+                scale={scale}
                 className={PAPER_CLASSNAME}
-                height={'100%'}
+                elementView={ReactElementView}
                 renderElement={renderElement}
-                onElementsSizeReady={onElementReady}
-                onRenderDone={onElementReady}
             />
         </div>
     );
 }
 
-// Define the remove tool for the link
-const removeTool = new linkTools.Remove({
-    scale: 1.5,
-    style: { stroke: '#999' },
-});
+// ============================================================================
+// Selection
+// ============================================================================
 
-// Define the tools view for the link - so we can remove the link when hovered
-const toolsView = new dia.ToolsView({
-    tools: [removeTool],
-});
-
-interface ToolbarProps {
-  readonly onToggleMinimap: (visible: boolean) => void;
-  readonly isMinimapVisible: boolean;
-  readonly selectedId: dia.Cell.ID | null;
-  readonly setSelectedId: (id: dia.Cell.ID | null) => void;
-}
-// Toolbar component with some actions
-function ToolBar(props: ToolbarProps) {
-    const { onToggleMinimap, isMinimapVisible, selectedId, setSelectedId } =
-    props;
-    const graph = useGraph();
+function Selection({ selectedId }: { selectedId: dia.Cell.ID | null }) {
     const paper = usePaper();
+    const graph = useGraph();
+
+    useEffect(() => {
+        highlighters.mask.removeAll(paper);
+
+        if (!selectedId) return;
+
+        const cell = graph.getCell(selectedId);
+        if (!cell) return;
+
+        const view = paper.findViewByModel(cell);
+        highlighters.mask.add(view, 'root', 'selection', {
+            padding: 8,
+            layer: dia.Paper.Layers.FRONT,
+        });
+    }, [graph, paper, selectedId]);
+
+    return null;
+}
+
+// ============================================================================
+// Main
+// ============================================================================
+
+
+function Badge({ x = 0, y = 0, size = 10, color = 'red' }: { x?: number; y?: number; size?: number; color?: string }) {
     return (
-        <div className="flex flex-row absolute top-2 left-2 z-10 bg-gray-900  rounded-lg p-2 shadow-md gap-2">
-            <button
-                type="button"
-                className={BUTTON_CLASSNAME}
-                onClick={() => {
-                    onToggleMinimap(!isMinimapVisible);
-                }}
+        <>
+            <circle cx={x} cy={y} r={size} fill={color} />
+            <text
+                x={x}
+                y={y}
+                dominantBaseline="middle"
+                textAnchor="middle"
+                fontSize="12"
+                fill="white"
+                fontWeight="bold"
             >
-                {isMinimapVisible ? (
-                    <i className="fa-solid fa-eye"></i>
-                ) : (
-                    <i className="fa-solid fa-eye-slash"></i>
-                )}
-                <span className="ml-2">Toggle Minimap</span>
-            </button>
-            <button
-                type="button"
-                className={`${BUTTON_CLASSNAME} ${selectedId ? '' : 'opacity-20 cursor-not-allowed'}`}
-                disabled={!selectedId}
-                onClick={() => {
-                    if (!selectedId) {
-                        return;
-                    }
-                    const cell = graph.getCell(selectedId);
-                    if (!cell) {
-                        return;
-                    }
-                    if (!cell.isElement()) {
-                        return;
-                    }
-                    const clone = cell.clone();
-                    clone.translate(20, 20);
-                    graph.addCell(clone);
-                    setSelectedId(clone.id);
-                }}
-            >
-                <i className="fa-solid fa-clone"></i>
-                <span className="ml-2">Duplicate</span>
-            </button>
-            <button
-                type="button"
-                className={`${BUTTON_CLASSNAME} ${selectedId ? '' : 'opacity-20 cursor-not-allowed'}`}
-                disabled={!selectedId}
-                onClick={() => {
-                    if (!selectedId) {
-                        return;
-                    }
-                    const cell = graph.getCell(selectedId);
-                    if (!cell) {
-                        return;
-                    }
-                    if (!cell.isElement()) {
-                        return;
-                    }
-                    cell.remove();
-                    setSelectedId(null);
-                }}
-            >
-                <i className="fa-solid fa-trash"></i>
-                <span className="ml-2">Remove selected element</span>
-            </button>
-            <button
-                type="button"
-                className={BUTTON_CLASSNAME}
-                onClick={() => {
-                    paper.transformToFitContent({
-                        verticalAlign: 'middle',
-                        horizontalAlign: 'middle',
-                        padding: 20,
-                    });
-                }}
-            >
-                <i className="fa-solid fa-undo"></i>
-                <span className="ml-2">Zoom to fit</span>
-            </button>
-        </div>
+        !
+            </text>
+        </>
     );
 }
 
-// Define main paper component and render elements
 function Main() {
-    const [isMinimapVisible, setIsMinimapVisible] = useState(false);
+    const [paperStore, setPaperStore] = useState<PaperStore | null>(null);
+    const [showMinimap, setShowMinimap] = useState(false);
     const [selectedElement, setSelectedElement] = useState<dia.Cell.ID | null>(
         null,
     );
 
-    const renderElement = useCallback(
-        (element: Element) => {
-            const { elementType, id } = element;
 
-            const isSelected = id === selectedElement;
-            switch (elementType) {
-                case 'alert':
-                case 'info': {
-                    return <MessageComponent {...element} isSelected={isSelected} />;
-                }
-                case 'table': {
-                    return <TableElement {...element} isSelected={isSelected} />;
-                }
-            }
-        },
-        [selectedElement],
-    );
+    const renderElement = useCallback((data: ElementData) => {
+        const { jjType, color = 'lightgray', title = 'No Title' } = data;
+        const { width } = useNodeLayout();
+        return (
+            <>
+                {jjType ?? <Shape color={color} title={title} />}
+                <Badge x={width + 10} y={-10} size={10} color={color} />
+            </>
+        );
+    }, []);
+
+    const graph = useGraph();
+
     return (
         <div className="flex flex-col relative w-full h-full">
-            <div className="flex flex-col relative h-full">
-                <Paper
-                    {...PAPER_PROPS}
-                    defaultLink={new shapes.standard.Link(links[0])}
-                    renderElement={renderElement}
-                    className={PAPER_CLASSNAME}
-                    onCellPointerClick={({ cellView }) => {
-                        const cell = cellView.model;
-                        setSelectedElement(cell.id ?? null);
-                    }}
-                    onLinkPointerClick={() => {
-                        setSelectedElement(null);
-                    }}
-                    onBlankPointerClick={() => {
-                        setSelectedElement(null);
-                    }}
-                    width="100%"
-                    height="calc(100vh - 100px)"
-                >
-                    <ToolBar
-                        onToggleMinimap={setIsMinimapVisible}
-                        isMinimapVisible={isMinimapVisible}
-                        selectedId={selectedElement}
-                        setSelectedId={setSelectedElement}
-                    />
-                </Paper>
+            <Paper
+                {...PAPER_PROPS}
+                ref={setPaperStore}
+                className={PAPER_CLASSNAME}
+                width="100%"
+                height="calc(100vh - 100px)"
+                snapLinks={{ radius: 25 }}
+                renderElement={renderElement}
+                linkView={ReactLinkView}
+                onViewPostponed={() => false}
+                elementView={ReactElementView}
+                validateMagnet={(_, magnet) =>
+                    magnet.getAttribute('magnet') !== 'passive'
+                }
+                linkPinning={false}
+                onElementPointerClick={({ elementView }) =>
+                    setSelectedElement(elementView.model.id ?? null)
+                }
+                onElementPointerDblClick={({ elementView }) => {
+                    const cell = elementView.model;
+                    cell.clone().translate(10, 10).addTo(cell.graph);
+                }}
+                onBlankPointerClick={() => setSelectedElement(null)}
+            >
+                <Selection selectedId={selectedElement} />
+            </Paper>
 
-                {isMinimapVisible && <MiniMap />}
-            </div>
+            {showMinimap && paperStore && <MiniMap paper={paperStore.paper} />}
+
+            <button
+                type="button"
+                className="absolute top-2 right-2 z-10 bg-gray-900 rounded-lg p-2 shadow-md text-white text-sm"
+                onClick={() => setShowMinimap((v) => !v)}
+            >
+                {showMinimap ? 'Hide Minimap' : 'Show Minimap'}
+            </button>
+
+            <button
+                type="button"
+                className="absolute top-2 left-2 z-10 bg-gray-900 rounded-lg p-2 shadow-md text-white text-sm"
+                onClick={() => {
+                    console.log('Graph log:', graph.toJSON());
+                }}>Log
+            </button>
         </div>
     );
 }
 
+// ============================================================================
+// App
+// ============================================================================
+
 export default function App() {
     return (
-        <GraphProvider initialElements={elements} initialLinks={links}>
+        <GraphProvider
+            elements={elements}
+            links={links}
+            mapDataToElementAttributes={({ data, defaultAttributes }) => {
+                const { jjType, color = 'lightgray' } = data as ElementData;
+                if (!jjType) return defaultAttributes();
+                return {
+                    ...defaultAttributes(),
+                    type: jjType,
+                    attrs: {
+                        body: { fill: color },
+                    },
+                };
+            }}
+            mapDataToLinkAttributes={({ data, defaultAttributes }) => {
+                const { jjType } = data as LinkData;
+
+                // For standard links, use the built-in theme defaults
+                // The defaultAttributes() already handles color, width, and markers
+                if (!jjType) {
+                    return defaultAttributes();
+                }
+
+                // For custom link types (like standard.ShadowLink), override the type
+                const { attrs, ...rest } = defaultAttributes();
+                return {
+                    ...rest,
+                    type: jjType,
+                };
+            }}
+        >
             <Main />
         </GraphProvider>
     );

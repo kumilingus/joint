@@ -1,6 +1,7 @@
 import type { dia, shapes } from '@joint/core';
+import type { MarkerPreset } from '../theme/link-theme';
 
-interface StandardLinkShapesTypeMapper {
+export interface StandardLinkShapesTypeMapper {
   'standard.DoubleLink': shapes.standard.DoubleLinkSelectors;
   'standard.ShadowLink': shapes.standard.ShadowLinkSelectors;
   'standard.Link': shapes.standard.LinkSelectors;
@@ -9,46 +10,61 @@ interface StandardLinkShapesTypeMapper {
 export type StandardLinkShapesType = keyof StandardLinkShapesTypeMapper;
 /**
  * Base interface for graph link.
- * It's a subset of `dia.Link` with some additional properties.
+ * Core properties are mapped to JointJS link attributes.
+ * Additional properties become user data stored in the `data` attribute.
  * @group Graph
- * @see @see https://docs.jointjs.com/learn/features/shapes/links/#dialink
+ * @see https://docs.jointjs.com/learn/features/shapes/links/#dialink
  */
-export interface GraphLink<Type extends StandardLinkShapesType | string = string>
-  extends dia.Link.EndJSON,
-    Record<string, unknown> {
+export interface GraphLink extends Record<string, unknown> {
   /**
    * Unique identifier of the link.
    */
   readonly id: dia.Cell.ID;
   /**
-   * Source element id.
+   * Source element id or endpoint definition.
    */
   readonly source: dia.Cell.ID | dia.Link.EndJSON;
   /**
-   * Target element id.
+   * Target element id or endpoint definition.
    */
   readonly target: dia.Cell.ID | dia.Link.EndJSON;
   /**
    * Optional link type.
+   * @default 'ReactLink'
    */
-  readonly type?: Type;
+  readonly type?: string;
   /**
    * Z index of the link.
    */
   readonly z?: number;
   /**
-   * Optional link markup.
+   * Link labels.
    */
-  readonly markup?: dia.MarkupJSON;
+  readonly labels?: dia.Link.Label[];
   /**
-   * Optional link attrs.
+   * Link vertices (waypoints).
    */
-  readonly defaultLabel?: dia.Link.Label;
-
+  readonly vertices?: dia.Link.Vertex[];
   /**
-   * Attributes of the element.
+   * Stroke color of the link line.
+   * @default '#333333'
    */
-  readonly attrs?: Type extends StandardLinkShapesType
-    ? StandardLinkShapesTypeMapper[Type]
-    : unknown;
+  readonly color?: string;
+  /**
+   * Stroke width of the link line.
+   * @default 2
+   */
+  readonly width?: number;
+  /**
+   * Source marker preset name or custom marker definition.
+   * Use 'none' or null for no marker.
+   * @default 'none'
+   */
+  readonly sourceMarker?: MarkerPreset | dia.SVGMarkerJSON | null;
+  /**
+   * Target marker preset name or custom marker definition.
+   * Use 'none' or null for no marker.
+   * @default 'none'
+   */
+  readonly targetMarker?: MarkerPreset | dia.SVGMarkerJSON | null;
 }

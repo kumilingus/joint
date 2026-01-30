@@ -14,3 +14,7 @@ body {
   padding-top: 10px;
   background-color: #131e29;
 }
+
+.dashed-link {
+  stroke-dasharray: 5 5;
+}
