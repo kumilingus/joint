@@ -7,6 +7,23 @@
     overflow: scroll;
 }
 
+.joint-cells-layer .joint-cell {
+    transition: opacity 0.3s ease;
+}
+
+.joint-cells-layer .joint-cell.dimmed {
+    opacity: 0.1;
+}
+
+.highlighted {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    @starting-style {
+        opacity: 0;
+    }
+
+}
+
 #logo {
     position: absolute;
     bottom: 20px;

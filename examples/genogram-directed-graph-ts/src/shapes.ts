@@ -4,6 +4,7 @@ import { dia, util } from '@joint/core';
 const maleMarkup = util.svg`
     <rect @selector="body"/>
     <line @selector="deceasedLine"/>
+    <text @selector="ageLabel"/>
     <text @selector="label"/>
 `;
 
@@ -11,6 +12,7 @@ const maleMarkup = util.svg`
 const femaleMarkup = util.svg`
     <ellipse @selector="body"/>
     <line @selector="deceasedLine"/>
+    <text @selector="ageLabel"/>
     <text @selector="label"/>
 `;
 
@@ -18,6 +20,7 @@ const femaleMarkup = util.svg`
 const unknownMarkup = util.svg`
     <polygon @selector="body"/>
     <line @selector="deceasedLine"/>
+    <text @selector="ageLabel"/>
     <text @selector="label"/>
 `;
 
@@ -28,6 +31,20 @@ export const COUPLE_WIDTH = ELEMENT_WIDTH * 2 + COUPLE_GAP;
 export const COUPLE_HEIGHT = ELEMENT_HEIGHT;
 
 const commonAttrs = {
+    ageLabel: {
+        textVerticalAnchor: 'middle' as const,
+        textAnchor: 'middle' as const,
+        x: 'calc(0.5*w)',
+        y: 'calc(0.5*h)',
+        fontSize: 13,
+        fontFamily: 'Arial, helvetica, sans-serif',
+        fontWeight: 'bold' as const,
+        fill: '#333',
+        text: '',
+        stroke: '#fff',
+        strokeWidth: 3,
+        paintOrder: 'stroke' as const
+    },
     label: {
         textVerticalAnchor: 'top' as const,
         textAnchor: 'middle' as const,

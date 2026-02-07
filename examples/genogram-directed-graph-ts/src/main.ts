@@ -1,4 +1,4 @@
-import { dia, shapes } from '@joint/core';
+import { dia, shapes, highlighters } from '@joint/core';
 import { DirectedGraph } from '@joint/layout-directed-graph';
 import { MalePerson, FemalePerson, UnknownPerson, ELEMENT_WIDTH, COUPLE_WIDTH, COUPLE_HEIGHT } from './shapes';
 import { getPersonNodes, getParentChildLinks, getMateLinks, PersonNode } from './data';
@@ -704,6 +704,102 @@ paper.fitToContent({
 });
 paper.unfreeze();
 
+// --- Hover highlighting: ancestors & descendants ---
+
+// Build family tree lookups by person key
+const childToParentKeys = new Map<number, number[]>();
+const parentToChildKeys = new Map<number, number[]>();
+for (const person of persons) {
+    const parentKeys: number[] = [];
+    if (typeof person.mother === 'number') parentKeys.push(person.mother);
+    if (typeof person.father === 'number') parentKeys.push(person.father);
+    childToParentKeys.set(person.key, parentKeys);
+    for (const pk of parentKeys) {
+        if (!parentToChildKeys.has(pk)) parentToChildKeys.set(pk, []);
+        parentToChildKeys.get(pk)!.push(person.key);
+    }
+}
+
+function getAncestors(key: number, visited = new Set<number>()): Set<number> {
+    for (const parentKey of childToParentKeys.get(key) || []) {
+        if (visited.has(parentKey)) continue;
+        visited.add(parentKey);
+        getAncestors(parentKey, visited);
+    }
+    return visited;
+}
+
+function getDescendants(key: number, visited = new Set<number>()): Set<number> {
+    for (const childKey of parentToChildKeys.get(key) || []) {
+        if (visited.has(childKey)) continue;
+        visited.add(childKey);
+        getDescendants(childKey, visited);
+    }
+    return visited;
+}
+
+// Map element ID back to person key
+const elIdToKey = new Map<string, number>();
+for (const [key, id] of keyToId) {
+    elIdToKey.set(id, key);
+}
+
+const HIGHLIGHT_DIM = 'lineage-dim';
+const HIGHLIGHT_FOCUS = 'lineage-focus';
+
+paper.on('element:mouseenter', (cellView: dia.ElementView) => {
+    const personKey = elIdToKey.get(cellView.model.id as string);
+    if (personKey === undefined) return;
+
+    const relatedKeys = new Set<number>([personKey]);
+    for (const k of getAncestors(personKey)) relatedKeys.add(k);
+    for (const k of getDescendants(personKey)) relatedKeys.add(k);
+
+    const relatedElIds = new Set<string>();
+    for (const k of relatedKeys) {
+        const id = keyToId.get(k);
+        if (id) relatedElIds.add(id);
+    }
+
+    // Highlight hovered element with stroke
+    highlighters.stroke.add(cellView, 'body', HIGHLIGHT_FOCUS, {
+        padding: 1,
+        attrs: {
+            class: 'highlighted',
+            stroke: '#333',
+            strokeWidth: 2,
+        }
+    });
+
+    // Dim non-related elements
+    for (const el of graph.getElements()) {
+        if (relatedElIds.has(el.id as string)) continue;
+        const view = paper.findViewByModel(el);
+        if (view) {
+            highlighters.addClass.add(view, 'root', HIGHLIGHT_DIM, { className: 'dimmed' });
+        }
+    }
+
+    // Dim non-related links
+    for (const link of graph.getLinks()) {
+        const sourceId = (link.source() as { id?: string }).id;
+        const targetId = (link.target() as { id?: string }).id;
+        const sourceRelated = sourceId ? relatedElIds.has(sourceId) : false;
+        const targetRelated = targetId ? relatedElIds.has(targetId) : false;
+        if (sourceRelated && targetRelated) continue;
+
+        const view = paper.findViewByModel(link);
+        if (view) {
+            highlighters.addClass.add(view, 'root', HIGHLIGHT_DIM, { className: 'dimmed' });
+        }
+    }
+});
+
+paper.on('element:mouseleave', () => {
+    highlighters.addClass.removeAll(paper, HIGHLIGHT_DIM);
+    highlighters.stroke.removeAll(paper, HIGHLIGHT_FOCUS);
+});
+
 // --- Helpers ---
 
 function createPersonElement(person: PersonNode): dia.Element {
@@ -722,6 +818,18 @@ function createPersonElement(person: PersonNode): dia.Element {
     }
 
     el.attr('label/text', person.name);
+
+    // Compute and display age
+    if (person.birth) {
+        const birthDate = new Date(person.birth);
+        const endDate = person.death ? new Date(person.death) : new Date();
+        let age = endDate.getFullYear() - birthDate.getFullYear();
+        const monthDiff = endDate.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && endDate.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        el.attr('ageLabel/text', String(age));
+    }
 
     // Deceased: show diagonal line + reduce body opacity
     if (person.death) {
