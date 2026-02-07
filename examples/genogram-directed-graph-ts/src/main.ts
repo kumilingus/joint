@@ -1,12 +1,13 @@
 import { dia, shapes, highlighters } from '@joint/core';
 import { DirectedGraph } from '@joint/layout-directed-graph';
-import { MalePerson, FemalePerson, UnknownPerson, ELEMENT_WIDTH, COUPLE_WIDTH, COUPLE_HEIGHT } from './shapes';
+import { MalePerson, FemalePerson, UnknownPerson, ParentChildLink, MateLink, IdenticalLink, ELEMENT_WIDTH, COUPLE_WIDTH, COUPLE_HEIGHT } from './shapes';
+import { colors, sizes } from './theme';
 import { getPersonNodes, getParentChildLinks, getMateLinks, PersonNode } from './data';
 import './styles.css';
 
 const cellNamespace = {
     ...shapes,
-    genogram: { MalePerson, FemalePerson, UnknownPerson }
+    genogram: { MalePerson, FemalePerson, UnknownPerson, ParentChildLink, MateLink, IdenticalLink }
 };
 
 const graph = new dia.Graph({}, { cellNamespace });
@@ -19,22 +20,15 @@ const paper = new dia.Paper({
     interactive: false,
     async: true,
     frozen: true,
-    background: { color: '#f9f9f9' },
+    background: { color: colors.paperBackground },
     defaultConnector: {
         name: 'straight',
-        // args: { cornerType: 'cubic', cornerRadius: 10 }
     },
     defaultConnectionPoint: { name: 'rectangle', args: { useModelGeometry: true } },
     defaultAnchor: {
         name: 'center',
         args: { useModelGeometry: true }
-    },
-    // defaultRouter: {
-    //     name: 'rightAngle',
-    //     args: {
-    //         useVertices: true
-    //     }
-    // }
+    }
 });
 
 document.getElementById('paper-container')!.appendChild(paper.el);
@@ -42,7 +36,7 @@ document.getElementById('paper-container')!.appendChild(paper.el);
 // Parse data
 const persons = getPersonNodes();
 const parentChildLinks = getParentChildLinks(persons);
-const mateLinks = getMateLinks();
+const mateLinks = getMateLinks(persons);
 
 // Build a lookup from person key to element id
 const keyToId = new Map<number, string>();
@@ -50,7 +44,7 @@ const keyToId = new Map<number, string>();
 // Create elements
 const elements: dia.Element[] = persons.map((person) => {
     const el = createPersonElement(person);
-    keyToId.set(person.key, el.id as string);
+    keyToId.set(person.id, el.id as string);
     return el;
 });
 
@@ -81,13 +75,6 @@ for (const ml of mateLinks) {
 
     const container = new shapes.standard.Rectangle({
         size: { width: COUPLE_WIDTH, height: COUPLE_HEIGHT },
-        attrs: {
-            body: {
-                fill: 'transparent',
-                stroke: 'none',
-            },
-            label: { text: '' }
-        }
     });
 
     coupledPersonIds.add(fromId);
@@ -113,8 +100,8 @@ const soloElements = elements.filter((el) => !coupledPersonIds.has(el.id as stri
 const personByKey = new Map<number, PersonNode>();
 const personByElId = new Map<string, PersonNode>();
 for (const person of persons) {
-    personByKey.set(person.key, person);
-    const elId = keyToId.get(person.key);
+    personByKey.set(person.id, person);
+    const elId = keyToId.get(person.id);
     if (elId) personByElId.set(elId, person);
 }
 
@@ -331,7 +318,7 @@ for (let rank = 0; rank <= maxRank; rank++) {
 
         const childA = personByKey.get(a.childKey)!;
         const childB = personByKey.get(b.childKey)!;
-        const birthCmp = (childA.birth || '').localeCompare(childB.birth || '');
+        const birthCmp = (childA.dob || '').localeCompare(childB.dob || '');
         if (birthCmp !== 0) return birthCmp;
 
         return a.childKey - b.childKey;
@@ -378,17 +365,9 @@ for (const rel of parentChildLinks) {
     const isDuplicate = layoutEdgeSet.has(edgeKey);
     layoutEdgeSet.add(edgeKey);
 
-    const link = new shapes.standard.Link({
+    const link = new ParentChildLink({
         source: { id: srcLayout },
         target: { id: tgtLayout },
-        z: -1,
-        attrs: {
-            line: {
-                stroke: '#666',
-                strokeWidth: 1.5,
-                targetMarker: null,
-            }
-        }
     });
     linkInfos.push({ link, realSourceId, realTargetId });
     if (isDuplicate) {
@@ -405,8 +384,8 @@ graph.resetCells([...coupleContainers, ...soloElements, ...layoutLinks]);
 
 DirectedGraph.layout(graph, {
     rankDir: 'TB',
-    nodeSep: 20,
-    rankSep: 70,
+    nodeSep: sizes.nodeSep,
+    rankSep: sizes.rankSep,
     ranker: 'tight-tree',
     // align: 'DR',
     // setVertices: true,
@@ -575,7 +554,7 @@ for (const container of coupleContainers) {
 const mateJointLinks: dia.Link[] = mateLinks
     .filter((ml) => keyToId.has(ml.from) && keyToId.has(ml.to))
     .map((ml) => {
-        return new shapes.standard.Link({
+        return new MateLink({
             source: {
                 id: keyToId.get(ml.from)!,
                 anchor: { name: 'center', args: { useModelGeometry: true } }
@@ -584,16 +563,6 @@ const mateJointLinks: dia.Link[] = mateLinks
                 id: keyToId.get(ml.to)!,
                 anchor: { name: 'center', args: { useModelGeometry: true } }
             },
-            z: 2,
-            attrs: {
-                line: {
-                    stroke: '#c44a80',
-                    strokeWidth: 3,
-                    targetMarker: null,
-                    sourceMarker: null
-                }
-            },
-            router: { name: 'normal' }
         });
     });
 
@@ -602,7 +571,7 @@ if (mateJointLinks.length > 0) {
 }
 
 // Compute anchor ratio for positioning link-to-link anchors near target end
-const ANCHOR_VERTICAL_OFFSET = 70 / 4; // rankSep / 4
+const ANCHOR_VERTICAL_OFFSET = sizes.rankSep / 4;
 
 function computeAnchorRatio(link: dia.Link, verticalOffset: number): number {
     const sourceEl = graph.getCell((link.source() as { id: string }).id) as dia.Element;
@@ -658,12 +627,12 @@ const identicalLinks: dia.Link[] = [];
 const processedIdenticalPairs = new Set<string>();
 for (const person of persons) {
     if (person.identical === undefined) continue;
-    const personElId = keyToId.get(person.key);
+    const personElId = keyToId.get(person.id);
     const identicalElId = keyToId.get(person.identical);
     if (!personElId || !identicalElId) continue;
 
     // Avoid duplicates (A→B and B→A)
-    const pairKey = [person.key, person.identical].sort().join('|');
+    const pairKey = [person.id, person.identical].sort().join('|');
     if (processedIdenticalPairs.has(pairKey)) continue;
     processedIdenticalPairs.add(pairKey);
 
@@ -674,21 +643,9 @@ for (const person of persons) {
     const ratioA = computeAnchorRatio(linkA, ANCHOR_VERTICAL_OFFSET);
     const ratioB = computeAnchorRatio(linkB, ANCHOR_VERTICAL_OFFSET);
 
-    identicalLinks.push(new shapes.standard.Link({
+    identicalLinks.push(new IdenticalLink({
         source: { id: linkA.id, anchor: { name: 'connectionRatio', args: { ratio: ratioA } } },
         target: { id: linkB.id, anchor: { name: 'connectionRatio', args: { ratio: ratioB } } },
-        z: 3,
-        attrs: {
-            line: {
-                stroke: '#666',
-                strokeWidth: 1.5,
-                strokeDasharray: '4 2',
-                targetMarker: null,
-                sourceMarker: null
-            }
-        },
-        router: { name: 'normal' },
-        connector: { name: 'straight' }
     }));
 }
 
@@ -699,7 +656,7 @@ if (identicalLinks.length > 0) {
 // Fit paper to content and unfreeze
 paper.fitToContent({
     useModelGeometry: true,
-    padding: 40,
+    padding: sizes.paperPadding,
     allowNewOrigin: 'any'
 });
 paper.unfreeze();
@@ -713,10 +670,10 @@ for (const person of persons) {
     const parentKeys: number[] = [];
     if (typeof person.mother === 'number') parentKeys.push(person.mother);
     if (typeof person.father === 'number') parentKeys.push(person.father);
-    childToParentKeys.set(person.key, parentKeys);
+    childToParentKeys.set(person.id, parentKeys);
     for (const pk of parentKeys) {
         if (!parentToChildKeys.has(pk)) parentToChildKeys.set(pk, []);
-        parentToChildKeys.get(pk)!.push(person.key);
+        parentToChildKeys.get(pk)!.push(person.id);
     }
 }
 
@@ -764,10 +721,11 @@ paper.on('element:mouseenter', (cellView: dia.ElementView) => {
     // Highlight hovered element with stroke
     highlighters.stroke.add(cellView, 'body', HIGHLIGHT_FOCUS, {
         padding: 1,
+        layer: dia.Paper.Layers.BACK,
         attrs: {
             class: 'highlighted',
-            stroke: '#333',
-            strokeWidth: 2,
+            stroke: colors.highlightStroke,
+            strokeWidth: 10,
         }
     });
 
@@ -817,12 +775,12 @@ function createPersonElement(person: PersonNode): dia.Element {
             break;
     }
 
-    el.attr('label/text', person.name);
+    el.attr('name/text', person.name);
 
     // Compute and display age
-    if (person.birth) {
-        const birthDate = new Date(person.birth);
-        const endDate = person.death ? new Date(person.death) : new Date();
+    if (person.dob) {
+        const birthDate = new Date(person.dob);
+        const endDate = person.dod ? new Date(person.dod) : new Date();
         let age = endDate.getFullYear() - birthDate.getFullYear();
         const monthDiff = endDate.getMonth() - birthDate.getMonth();
         if (monthDiff < 0 || (monthDiff === 0 && endDate.getDate() < birthDate.getDate())) {
@@ -831,10 +789,9 @@ function createPersonElement(person: PersonNode): dia.Element {
         el.attr('ageLabel/text', String(age));
     }
 
-    // Deceased: show diagonal line + reduce body opacity
-    if (person.death) {
-        el.attr('deceasedLine/display', 'block');
-        el.attr('body/opacity', 0.6);
+    // Deceased: show cross
+    if (person.dod) {
+        el.attr('deceasedCross/display', 'block');
     }
 
     return el;

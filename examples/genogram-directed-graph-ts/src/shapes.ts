@@ -1,32 +1,35 @@
-import { dia, util } from '@joint/core';
+import { dia, shapes, util } from '@joint/core';
+import { colors, sizes } from './theme';
 
 // Male: rectangle (blue)
 const maleMarkup = util.svg`
     <rect @selector="body"/>
-    <line @selector="deceasedLine"/>
+    <path @selector="deceasedCross"/>
     <text @selector="ageLabel"/>
-    <text @selector="label"/>
+    <text @selector="name"/>
 `;
 
 // Female: ellipse (pink)
 const femaleMarkup = util.svg`
     <ellipse @selector="body"/>
-    <line @selector="deceasedLine"/>
+    <path @selector="deceasedCross"/>
     <text @selector="ageLabel"/>
-    <text @selector="label"/>
+    <text @selector="name"/>
 `;
 
 // Unknown: polygon/diamond (gray)
 const unknownMarkup = util.svg`
     <polygon @selector="body"/>
-    <line @selector="deceasedLine"/>
+    <path @selector="deceasedCross"/>
     <text @selector="ageLabel"/>
-    <text @selector="label"/>
+    <text @selector="name"/>
 `;
 
-export const ELEMENT_WIDTH = 50;
-export const ELEMENT_HEIGHT = 50;
-const COUPLE_GAP = 20;
+// --- Dimensions ---
+
+const { elementWidth: ELEMENT_WIDTH, elementHeight: ELEMENT_HEIGHT, coupleGap: COUPLE_GAP, crossPadding: CROSS_PADDING } = sizes;
+
+export { ELEMENT_WIDTH, ELEMENT_HEIGHT };
 export const COUPLE_WIDTH = ELEMENT_WIDTH * 2 + COUPLE_GAP;
 export const COUPLE_HEIGHT = ELEMENT_HEIGHT;
 
@@ -36,37 +39,36 @@ const commonAttrs = {
         textAnchor: 'middle' as const,
         x: 'calc(0.5*w)',
         y: 'calc(0.5*h)',
-        fontSize: 13,
+        fontSize: 16,
         fontFamily: 'Arial, helvetica, sans-serif',
         fontWeight: 'bold' as const,
-        fill: '#333',
+        fill: colors.dark,
         text: '',
-        stroke: '#fff',
+        stroke: colors.white,
         strokeWidth: 3,
         paintOrder: 'stroke' as const
     },
-    label: {
+    name: {
         textVerticalAnchor: 'top' as const,
         textAnchor: 'middle' as const,
         x: 'calc(0.5*w)',
         y: 'calc(h+4)',
         fontSize: 11,
         fontFamily: 'Arial, helvetica, sans-serif',
-        fill: '#333',
+        fill: colors.dark,
         textWrap: {
             width: 'calc(w+20)',
             maxLineCount: 2,
             ellipsis: true
         }
     },
-    deceasedLine: {
+    deceasedCross: {
         display: 'none',
-        stroke: '#333',
+        stroke: colors.dark,
         strokeWidth: 2,
-        x1: 0,
-        y1: 0,
-        x2: 'calc(w)',
-        y2: 'calc(h)'
+        fill: 'none',
+        d: `M ${CROSS_PADDING} ${CROSS_PADDING} calc(w-${CROSS_PADDING}) calc(h-${CROSS_PADDING}) M calc(w-${CROSS_PADDING}) ${CROSS_PADDING} ${CROSS_PADDING} calc(h-${CROSS_PADDING})`,
+        strokeLinecap: 'round' as const
     }
 };
 
@@ -80,8 +82,8 @@ export class MalePerson extends dia.Element {
                 body: {
                     width: 'calc(w)',
                     height: 'calc(h)',
-                    fill: '#a8d4f0',
-                    stroke: '#4a90c4',
+                    fill: colors.maleFill,
+                    stroke: colors.maleStroke,
                     strokeWidth: 2,
                     rx: 4,
                     ry: 4
@@ -108,8 +110,8 @@ export class FemalePerson extends dia.Element {
                     cy: 'calc(0.5*h)',
                     rx: 'calc(0.5*w)',
                     ry: 'calc(0.5*h)',
-                    fill: '#f0a8c8',
-                    stroke: '#c44a80',
+                    fill: colors.femaleFill,
+                    stroke: colors.femaleStroke,
                     strokeWidth: 2
                 },
                 ...commonAttrs
@@ -131,8 +133,8 @@ export class UnknownPerson extends dia.Element {
             attrs: {
                 body: {
                     points: `calc(0.5*w),0 calc(w),calc(0.5*h) calc(0.5*w),calc(h) 0,calc(0.5*h)`,
-                    fill: '#d0d0d0',
-                    stroke: '#808080',
+                    fill: colors.unknownFill,
+                    stroke: colors.unknownStroke,
                     strokeWidth: 2
                 },
                 ...commonAttrs
@@ -142,5 +144,56 @@ export class UnknownPerson extends dia.Element {
 
     preinitialize() {
         this.markup = unknownMarkup;
+    }
+}
+
+// --- Link shapes ---
+
+export class ParentChildLink extends shapes.standard.Link {
+    defaults() {
+        return util.defaultsDeep({
+            type: 'genogram.ParentChildLink',
+            z: -1,
+            attrs: {
+                line: {
+                    stroke: '#0F1108',
+                    strokeWidth: 1.5,
+                    targetMarker: null,
+                }
+            }
+        }, super.defaults);
+    }
+}
+
+export class MateLink extends shapes.standard.Link {
+    defaults() {
+        return util.defaultsDeep({
+            type: 'genogram.MateLink',
+            z: 2,
+            attrs: {
+                line: {
+                    stroke: colors.mateStroke,
+                    strokeWidth: 3,
+                    targetMarker: null,
+                }
+            },
+        }, super.defaults);
+    }
+}
+
+export class IdenticalLink extends shapes.standard.Link {
+    defaults() {
+        return util.defaultsDeep({
+            type: 'genogram.IdenticalLink',
+            z: 3,
+            attrs: {
+                line: {
+                    stroke: colors.identicalStroke,
+                    strokeWidth: 1.5,
+                    strokeDasharray: '4 2',
+                    targetMarker: null,
+                }
+            },
+        }, super.defaults);
     }
 }

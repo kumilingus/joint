@@ -1,23 +1,15 @@
 import genogramData from './data.json';
 
 export interface PersonNode {
-    key: number;
+    id: number;
     name: string;
     sex: 'M' | 'F' | '?';
-    mother?: number | '';
-    father?: number | '';
-    birth?: string;
-    death?: string;
+    mother?: number;
+    father?: number;
+    dob?: string;
+    dod?: string;
     multiple?: number;
     identical?: number;
-    category?: string;
-}
-
-export interface MateLink {
-    from: number;
-    to: number;
-    category?: string;
-    divorced?: boolean;
 }
 
 export interface ParentChildLink {
@@ -25,30 +17,43 @@ export interface ParentChildLink {
     childKey: number;
 }
 
+export interface MateLink {
+    from: number;
+    to: number;
+}
+
 export function getPersonNodes(): PersonNode[] {
-    return (genogramData.nodeDataArray as PersonNode[]).filter(
-        (node) => node.category !== 'MateLabel'
-    );
+    return genogramData as PersonNode[];
 }
 
 export function getParentChildLinks(persons: PersonNode[]): ParentChildLink[] {
     const links: ParentChildLink[] = [];
-    const personKeys = new Set(persons.map((p) => p.key));
+    const personKeys = new Set(persons.map((p) => p.id));
 
     for (const person of persons) {
         if (typeof person.mother === 'number' && personKeys.has(person.mother)) {
-            links.push({ parentKey: person.mother, childKey: person.key });
+            links.push({ parentKey: person.mother, childKey: person.id });
         }
         if (typeof person.father === 'number' && personKeys.has(person.father)) {
-            links.push({ parentKey: person.father, childKey: person.key });
+            links.push({ parentKey: person.father, childKey: person.id });
         }
     }
 
     return links;
 }
 
-export function getMateLinks(): MateLink[] {
-    return (genogramData.linkDataArray as MateLink[]).filter(
-        (link) => link.category === 'Mate'
-    );
+export function getMateLinks(persons: PersonNode[]): MateLink[] {
+    const couples = new Set<string>();
+    const links: MateLink[] = [];
+
+    for (const person of persons) {
+        if (typeof person.mother === 'number' && typeof person.father === 'number') {
+            const pairKey = `${person.father}|${person.mother}`;
+            if (couples.has(pairKey)) continue;
+            couples.add(pairKey);
+            links.push({ from: person.father, to: person.mother });
+        }
+    }
+
+    return links;
 }
