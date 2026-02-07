@@ -176,15 +176,56 @@ for (const [id, rank] of nodeRank) {
     nodesByRank.get(rank)!.push(id);
 }
 
-// Refine order for nodes at a given rank: group nodes that share a child layout node
-// so that e.g. paternal and maternal grandparents are adjacent when their children married.
+// Reorder nodes at a given rank to minimize edge crossings.
+// Rank 0 (roots): use connection-graph BFS — groups nodes that share children.
+// Other ranks: use barycenter heuristic — average parent order from previous rank.
 function refineRankOrder(rank: number) {
     const nodesAtRank = nodesByRank.get(rank) || [];
     if (nodesAtRank.length <= 1) return;
 
+    if (rank === 0) {
+        refineByConnectionBFS(nodesAtRank);
+    } else {
+        refineByBarycenter(nodesAtRank);
+    }
+}
+
+function refineByBarycenter(nodesAtRank: string[]) {
+    const barycenter = new Map<string, number>();
+    for (const nodeId of nodesAtRank) {
+        const parents = layoutIncoming.get(nodeId);
+        if (!parents || parents.size === 0) {
+            barycenter.set(nodeId, nodeOrder.get(nodeId) ?? 0);
+            continue;
+        }
+        let sum = 0;
+        let count = 0;
+        for (const parentId of parents) {
+            const order = nodeOrder.get(parentId);
+            if (order !== undefined) {
+                sum += order;
+                count++;
+            }
+        }
+        barycenter.set(nodeId, count > 0 ? sum / count : (nodeOrder.get(nodeId) ?? 0));
+    }
+
+    const sorted = [...nodesAtRank].sort((a, b) => {
+        const ba = barycenter.get(a) ?? 0;
+        const bb = barycenter.get(b) ?? 0;
+        if (ba !== bb) return ba - bb;
+        return (nodeOrder.get(a) ?? 0) - (nodeOrder.get(b) ?? 0);
+    });
+
+    for (const nodeId of sorted) {
+        nodeOrder.set(nodeId, orderIdx++);
+    }
+}
+
+function refineByConnectionBFS(nodesAtRank: string[]) {
     const rankNodeSet = new Set(nodesAtRank);
 
-    // Build connections: two same-rank nodes are connected if they share a child
+    // Build connections: two nodes are connected if they share a child
     const connections = new Map<string, Set<string>>();
     for (const nodeId of nodesAtRank) {
         const children = layoutAdj.get(nodeId);
@@ -203,38 +244,68 @@ function refineRankOrder(rank: number) {
         }
     }
 
-    // Find connected components (preserving existing order)
     const sortedNodes = [...nodesAtRank].sort(
         (a, b) => (nodeOrder.get(a) ?? Infinity) - (nodeOrder.get(b) ?? Infinity)
     );
+
     const visited = new Set<string>();
-    const components: string[][] = [];
-    for (const nodeId of sortedNodes) {
-        if (visited.has(nodeId)) continue;
-        const component: string[] = [];
-        const stack = [nodeId];
-        while (stack.length > 0) {
-            const current = stack.pop()!;
-            if (visited.has(current)) continue;
-            visited.add(current);
-            component.push(current);
+    const orderedNodes: string[] = [];
+
+    for (const seedNode of sortedNodes) {
+        if (visited.has(seedNode)) continue;
+
+        const componentSet = new Set<string>();
+        const findStack = [seedNode];
+        while (findStack.length > 0) {
+            const current = findStack.pop()!;
+            if (componentSet.has(current)) continue;
+            componentSet.add(current);
             const neighbors = connections.get(current);
             if (neighbors) {
-                for (const neighbor of neighbors) {
-                    if (!visited.has(neighbor)) stack.push(neighbor);
+                for (const n of neighbors) {
+                    if (!componentSet.has(n)) findStack.push(n);
                 }
             }
         }
-        // Sort within component by existing order
-        component.sort((a, b) => (nodeOrder.get(a) ?? Infinity) - (nodeOrder.get(b) ?? Infinity));
-        components.push(component);
+
+        if (componentSet.size === 1) {
+            visited.add(seedNode);
+            orderedNodes.push(seedNode);
+            continue;
+        }
+
+        // Start BFS from the node with minimum degree (end of a chain)
+        let startNode = seedNode;
+        let bestDegree = Infinity;
+        let bestOrder = Infinity;
+        for (const n of componentSet) {
+            const degree = connections.get(n)?.size ?? 0;
+            const order = nodeOrder.get(n) ?? Infinity;
+            if (degree < bestDegree || (degree === bestDegree && order < bestOrder)) {
+                bestDegree = degree;
+                bestOrder = order;
+                startNode = n;
+            }
+        }
+
+        const queue = [startNode];
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            if (visited.has(current)) continue;
+            visited.add(current);
+            orderedNodes.push(current);
+            const neighbors = connections.get(current);
+            if (neighbors) {
+                const sorted = [...neighbors]
+                    .filter(n => !visited.has(n))
+                    .sort((a, b) => (nodeOrder.get(a) ?? Infinity) - (nodeOrder.get(b) ?? Infinity));
+                queue.push(...sorted);
+            }
+        }
     }
 
-    // Reassign order values so connected nodes are contiguous
-    for (const comp of components) {
-        for (const nodeId of comp) {
-            nodeOrder.set(nodeId, orderIdx++);
-        }
+    for (const nodeId of orderedNodes) {
+        nodeOrder.set(nodeId, orderIdx++);
     }
 }
 
@@ -288,20 +359,28 @@ parentChildLinks.push(...sortedLinks);
 
 // Create parent→child links, pointing to containers for layout.
 // Store original person IDs so we can reconnect after layout.
+// Deduplicate at layout level: when both parents are in the same couple, only one
+// layout edge is needed (dagre gets confused by duplicate edges).
 interface LinkInfo {
     link: dia.Link;
     realSourceId: string;
     realTargetId: string;
 }
-const linkInfos: LinkInfo[] = parentChildLinks.map((rel) => {
+const linkInfos: LinkInfo[] = [];
+const layoutEdgeSet = new Set<string>();
+for (const rel of parentChildLinks) {
     const realSourceId = keyToId.get(rel.parentKey)!;
     const realTargetId = keyToId.get(rel.childKey)!;
+    const srcLayout = layoutId(realSourceId);
+    const tgtLayout = layoutId(realTargetId);
+    const edgeKey = `${srcLayout}→${tgtLayout}`;
+    // Skip duplicate layout-level edges (but always create the LinkInfo for reconnection)
+    const isDuplicate = layoutEdgeSet.has(edgeKey);
+    layoutEdgeSet.add(edgeKey);
 
     const link = new shapes.standard.Link({
-        source: { id: layoutId(realSourceId) },
-        target: {
-            id: layoutId(realTargetId),
-        },
+        source: { id: srcLayout },
+        target: { id: tgtLayout },
         z: -1,
         attrs: {
             line: {
@@ -311,12 +390,18 @@ const linkInfos: LinkInfo[] = parentChildLinks.map((rel) => {
             }
         }
     });
-    return { link, realSourceId, realTargetId };
-});
+    linkInfos.push({ link, realSourceId, realTargetId });
+    if (isDuplicate) {
+        // Mark duplicate links — they won't participate in layout but will be
+        // reconnected and added to the graph after layout
+        (link as any)._layoutDuplicate = true;
+    }
+}
 const links = linkInfos.map((li) => li.link);
+const layoutLinks = links.filter((l) => !(l as any)._layoutDuplicate);
 
-// Layout only containers + solo elements + links
-graph.resetCells([...coupleContainers, ...soloElements, ...links]);
+// Layout only containers + solo elements + deduplicated links
+graph.resetCells([...coupleContainers, ...soloElements, ...layoutLinks]);
 
 DirectedGraph.layout(graph, {
     rankDir: 'TB',
@@ -327,6 +412,12 @@ DirectedGraph.layout(graph, {
     // setVertices: true,
     disableOptimalOrderHeuristic: true
 });
+
+// Add duplicate links back to the graph (they were excluded from layout)
+const duplicateLinks = links.filter((l) => (l as any)._layoutDuplicate);
+if (duplicateLinks.length > 0) {
+    graph.addCells(duplicateLinks);
+}
 
 // Position couple members inside their containers.
 // Place the partner whose family is further left on the left side.
@@ -633,7 +724,7 @@ function createPersonElement(person: PersonNode): dia.Element {
     el.attr('label/text', person.name);
 
     // Deceased: show diagonal line + reduce body opacity
-    if (person.death === true || (typeof person.death === 'string' && person.death !== '')) {
+    if (person.death) {
         el.attr('deceasedLine/display', 'block');
         el.attr('body/opacity', 0.6);
     }

@@ -1,4 +1,4 @@
-import genogramData from '../../genogram-ts/data.json';
+import genogramData from './data.json';
 
 export interface PersonNode {
     key: number;
@@ -7,12 +7,9 @@ export interface PersonNode {
     mother?: number | '';
     father?: number | '';
     birth?: string;
-    death?: boolean | string;
-    note?: string;
-    adopted?: 'in' | 'out';
+    death?: string;
     multiple?: number;
     identical?: number;
-    reproduction?: string;
     category?: string;
 }
 
