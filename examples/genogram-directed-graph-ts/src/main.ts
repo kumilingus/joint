@@ -109,6 +109,183 @@ function layoutId(personElId: string): string {
 // Solo (non-coupled) person elements participate in layout directly
 const soloElements = elements.filter((el) => !coupledPersonIds.has(el.id as string));
 
+// Build lookups from person key / element ID to PersonNode
+const personByKey = new Map<number, PersonNode>();
+const personByElId = new Map<string, PersonNode>();
+for (const person of persons) {
+    personByKey.set(person.key, person);
+    const elId = keyToId.get(person.key);
+    if (elId) personByElId.set(elId, person);
+}
+
+// Sort links layer by layer (top → bottom) so dagre orders each rank correctly.
+// Processing rank N first establishes the node order used to sort rank N+1.
+
+// Build layout-level adjacency and compute ranks via BFS
+const layoutAdj = new Map<string, Set<string>>();
+const layoutIncoming = new Map<string, Set<string>>();
+for (const rel of parentChildLinks) {
+    const src = layoutId(keyToId.get(rel.parentKey)!);
+    const tgt = layoutId(keyToId.get(rel.childKey)!);
+    if (src === tgt) continue;
+    if (!layoutAdj.has(src)) layoutAdj.set(src, new Set());
+    layoutAdj.get(src)!.add(tgt);
+    if (!layoutIncoming.has(tgt)) layoutIncoming.set(tgt, new Set());
+    layoutIncoming.get(tgt)!.add(src);
+}
+
+const allLayoutNodeIds = [
+    ...coupleContainers.map((c) => c.id as string),
+    ...soloElements.map((e) => e.id as string)
+];
+const roots = allLayoutNodeIds.filter((id) => !layoutIncoming.has(id));
+
+const nodeRank = new Map<string, number>();
+let bfsQueue = [...roots];
+for (const r of bfsQueue) nodeRank.set(r, 0);
+while (bfsQueue.length > 0) {
+    const next: string[] = [];
+    for (const id of bfsQueue) {
+        const children = layoutAdj.get(id);
+        if (!children) continue;
+        const childRank = nodeRank.get(id)! + 1;
+        for (const childId of children) {
+            if (!nodeRank.has(childId)) {
+                nodeRank.set(childId, childRank);
+                next.push(childId);
+            }
+        }
+    }
+    bfsQueue = next;
+}
+
+// Group links by their source's rank
+const maxRank = Math.max(0, ...nodeRank.values());
+const linksBySourceRank = new Map<number, typeof parentChildLinks>();
+for (const rel of parentChildLinks) {
+    const src = layoutId(keyToId.get(rel.parentKey)!);
+    const rank = nodeRank.get(src) ?? 0;
+    if (!linksBySourceRank.has(rank)) linksBySourceRank.set(rank, []);
+    linksBySourceRank.get(rank)!.push(rel);
+}
+
+// Collect layout nodes by rank
+const nodesByRank = new Map<number, string[]>();
+for (const [id, rank] of nodeRank) {
+    if (!nodesByRank.has(rank)) nodesByRank.set(rank, []);
+    nodesByRank.get(rank)!.push(id);
+}
+
+// Refine order for nodes at a given rank: group nodes that share a child layout node
+// so that e.g. paternal and maternal grandparents are adjacent when their children married.
+function refineRankOrder(rank: number) {
+    const nodesAtRank = nodesByRank.get(rank) || [];
+    if (nodesAtRank.length <= 1) return;
+
+    const rankNodeSet = new Set(nodesAtRank);
+
+    // Build connections: two same-rank nodes are connected if they share a child
+    const connections = new Map<string, Set<string>>();
+    for (const nodeId of nodesAtRank) {
+        const children = layoutAdj.get(nodeId);
+        if (!children) continue;
+        for (const childId of children) {
+            const childParents = layoutIncoming.get(childId);
+            if (!childParents) continue;
+            for (const otherParent of childParents) {
+                if (otherParent !== nodeId && rankNodeSet.has(otherParent)) {
+                    if (!connections.has(nodeId)) connections.set(nodeId, new Set());
+                    if (!connections.has(otherParent)) connections.set(otherParent, new Set());
+                    connections.get(nodeId)!.add(otherParent);
+                    connections.get(otherParent)!.add(nodeId);
+                }
+            }
+        }
+    }
+
+    // Find connected components (preserving existing order)
+    const sortedNodes = [...nodesAtRank].sort(
+        (a, b) => (nodeOrder.get(a) ?? Infinity) - (nodeOrder.get(b) ?? Infinity)
+    );
+    const visited = new Set<string>();
+    const components: string[][] = [];
+    for (const nodeId of sortedNodes) {
+        if (visited.has(nodeId)) continue;
+        const component: string[] = [];
+        const stack = [nodeId];
+        while (stack.length > 0) {
+            const current = stack.pop()!;
+            if (visited.has(current)) continue;
+            visited.add(current);
+            component.push(current);
+            const neighbors = connections.get(current);
+            if (neighbors) {
+                for (const neighbor of neighbors) {
+                    if (!visited.has(neighbor)) stack.push(neighbor);
+                }
+            }
+        }
+        // Sort within component by existing order
+        component.sort((a, b) => (nodeOrder.get(a) ?? Infinity) - (nodeOrder.get(b) ?? Infinity));
+        components.push(component);
+    }
+
+    // Reassign order values so connected nodes are contiguous
+    for (const comp of components) {
+        for (const nodeId of comp) {
+            nodeOrder.set(nodeId, orderIdx++);
+        }
+    }
+}
+
+// Process rank by rank: refine order, sort links, then record child order for the next rank
+const nodeOrder = new Map<string, number>();
+let orderIdx = 0;
+for (const r of roots) nodeOrder.set(r, orderIdx++);
+
+// Refine root order first (group roots whose children married each other)
+refineRankOrder(0);
+
+const sortedLinks: typeof parentChildLinks = [];
+for (let rank = 0; rank <= maxRank; rank++) {
+    const rankedLinks = linksBySourceRank.get(rank) || [];
+
+    // Sort by: 1) source node's established order, 2) child birth date, 3) child key
+    rankedLinks.sort((a, b) => {
+        const srcA = layoutId(keyToId.get(a.parentKey)!);
+        const srcB = layoutId(keyToId.get(b.parentKey)!);
+        const orderA = nodeOrder.get(srcA) ?? Infinity;
+        const orderB = nodeOrder.get(srcB) ?? Infinity;
+        if (orderA !== orderB) return orderA - orderB;
+
+        const childA = personByKey.get(a.childKey)!;
+        const childB = personByKey.get(b.childKey)!;
+        const birthCmp = (childA.birth || '').localeCompare(childB.birth || '');
+        if (birthCmp !== 0) return birthCmp;
+
+        return a.childKey - b.childKey;
+    });
+
+    // Establish order for child layout nodes based on the sorted link order
+    for (const rel of rankedLinks) {
+        const tgt = layoutId(keyToId.get(rel.childKey)!);
+        if (!nodeOrder.has(tgt)) {
+            nodeOrder.set(tgt, orderIdx++);
+        }
+    }
+
+    sortedLinks.push(...rankedLinks);
+
+    // Refine the next rank's order: group nodes that share a child
+    if (rank < maxRank) {
+        refineRankOrder(rank + 1);
+    }
+}
+
+// Replace parentChildLinks contents with sorted order
+parentChildLinks.length = 0;
+parentChildLinks.push(...sortedLinks);
+
 // Create parent→child links, pointing to containers for layout.
 // Store original person IDs so we can reconnect after layout.
 interface LinkInfo {
@@ -151,26 +328,55 @@ DirectedGraph.layout(graph, {
     disableOptimalOrderHeuristic: true
 });
 
-// Position couple members inside their containers and add them to the graph
+// Position couple members inside their containers.
+// Place the partner whose family is further left on the left side.
 const gap = COUPLE_WIDTH - ELEMENT_WIDTH * 2;
+
+function getParentX(personElId: string): number {
+    // Find the person's parent layout nodes and return average X position
+    const person = personByElId.get(personElId);
+    if (!person) return Infinity;
+    const parentKeys: number[] = [];
+    if (typeof person.mother === 'number') parentKeys.push(person.mother);
+    if (typeof person.father === 'number') parentKeys.push(person.father);
+    if (parentKeys.length === 0) return Infinity;
+
+    let sum = 0;
+    let count = 0;
+    for (const pk of parentKeys) {
+        const parentElId = keyToId.get(pk);
+        if (!parentElId) continue;
+        const parentLayoutNodeId = layoutId(parentElId);
+        const parentCell = graph.getCell(parentLayoutNodeId) as dia.Element;
+        if (parentCell) {
+            sum += parentCell.getBBox().center().x;
+            count++;
+        }
+    }
+    return count > 0 ? sum / count : Infinity;
+}
+
 for (const { container, fromId, toId } of coupleInfos) {
     const pos = container.position();
     const fromEl = elements.find((e) => e.id === fromId)!;
     const toEl = elements.find((e) => e.id === toId)!;
 
-    fromEl.position(pos.x, pos.y);
-    toEl.position(pos.x + ELEMENT_WIDTH + gap, pos.y);
+    // Decide who goes left: the partner whose parents are further left
+    const fromParentX = getParentX(fromId);
+    const toParentX = getParentX(toId);
+
+    const [leftEl, rightEl] = fromParentX <= toParentX
+        ? [fromEl, toEl]
+        : [toEl, fromEl];
+
+    leftEl.position(pos.x, pos.y);
+    rightEl.position(pos.x + ELEMENT_WIDTH + gap, pos.y);
 }
 // Add the coupled person elements to the graph
 const coupledElements = elements.filter((el) => coupledPersonIds.has(el.id as string));
 graph.addCells(coupledElements);
 
-// Build lookup: element ID → multiple group (for twins/triplets)
-const personByElId = new Map<string, PersonNode>();
-for (const person of persons) {
-    const elId = keyToId.get(person.key);
-    if (elId) personByElId.set(elId, person);
-}
+
 
 // Identify twin/triplet groups: key = "sourceContainerId|multipleValue"
 // A child is a twin/triplet if it has a `multiple` field
@@ -302,6 +508,101 @@ const mateJointLinks: dia.Link[] = mateLinks
 
 if (mateJointLinks.length > 0) {
     graph.addCells(mateJointLinks);
+}
+
+// Compute anchor ratio for positioning link-to-link anchors near target end
+const ANCHOR_VERTICAL_OFFSET = 70 / 4; // rankSep / 4
+
+function computeAnchorRatio(link: dia.Link, verticalOffset: number): number {
+    const sourceEl = graph.getCell((link.source() as { id: string }).id) as dia.Element;
+    const targetEl = graph.getCell((link.target() as { id: string }).id) as dia.Element;
+    if (!sourceEl || !targetEl) return 0.85;
+
+    const srcBBox = sourceEl.getBBox();
+    const tgtBBox = targetEl.getBBox();
+    // Source uses default 'center' anchor; target uses 'top' anchor
+    const srcPt = { x: srcBBox.x + srcBBox.width / 2, y: srcBBox.y + srcBBox.height / 2 };
+    const tgtPt = { x: tgtBBox.x + tgtBBox.width / 2, y: tgtBBox.y };
+    const vertices = link.vertices() || [];
+    const points: { x: number; y: number }[] = [srcPt, ...vertices, tgtPt];
+
+    // Compute segment lengths
+    const segLengths: number[] = [];
+    for (let i = 1; i < points.length; i++) {
+        const dx = points[i].x - points[i - 1].x;
+        const dy = points[i].y - points[i - 1].y;
+        segLengths.push(Math.sqrt(dx * dx + dy * dy));
+    }
+    const totalLength = segLengths.reduce((a, b) => a + b, 0);
+    if (totalLength === 0) return 0.85;
+
+    // Walk backwards from target to find the path distance at the desired vertical offset
+    let remainingVertical = verticalOffset;
+    let distFromEnd = 0;
+    for (let i = points.length - 1; i > 0; i--) {
+        const dy = Math.abs(points[i].y - points[i - 1].y);
+        const segLen = segLengths[i - 1];
+        if (dy >= remainingVertical && dy > 0) {
+            // Anchor falls within this segment
+            distFromEnd += (remainingVertical / dy) * segLen;
+            break;
+        }
+        remainingVertical -= dy;
+        distFromEnd += segLen;
+    }
+
+    return Math.max(0.01, Math.min(0.99, 1 - distFromEnd / totalLength));
+}
+
+// Add link-to-link connections for identical multiples (identical twins/triplets)
+// Build a lookup: child element ID → one of its parent→child links
+const childElIdToLink = new Map<string, dia.Link>();
+for (const { link, realTargetId } of linkInfos) {
+    if (!childElIdToLink.has(realTargetId)) {
+        childElIdToLink.set(realTargetId, link);
+    }
+}
+
+const identicalLinks: dia.Link[] = [];
+const processedIdenticalPairs = new Set<string>();
+for (const person of persons) {
+    if (person.identical === undefined) continue;
+    const personElId = keyToId.get(person.key);
+    const identicalElId = keyToId.get(person.identical);
+    if (!personElId || !identicalElId) continue;
+
+    // Avoid duplicates (A→B and B→A)
+    const pairKey = [person.key, person.identical].sort().join('|');
+    if (processedIdenticalPairs.has(pairKey)) continue;
+    processedIdenticalPairs.add(pairKey);
+
+    const linkA = childElIdToLink.get(personElId);
+    const linkB = childElIdToLink.get(identicalElId);
+    if (!linkA || !linkB) continue;
+
+    const ratioA = computeAnchorRatio(linkA, ANCHOR_VERTICAL_OFFSET);
+    const ratioB = computeAnchorRatio(linkB, ANCHOR_VERTICAL_OFFSET);
+
+    identicalLinks.push(new shapes.standard.Link({
+        source: { id: linkA.id, anchor: { name: 'connectionRatio', args: { ratio: ratioA } } },
+        target: { id: linkB.id, anchor: { name: 'connectionRatio', args: { ratio: ratioB } } },
+        z: 3,
+        attrs: {
+            line: {
+                stroke: '#666',
+                strokeWidth: 1.5,
+                strokeDasharray: '4 2',
+                targetMarker: null,
+                sourceMarker: null
+            }
+        },
+        router: { name: 'normal' },
+        connector: { name: 'straight' }
+    }));
+}
+
+if (identicalLinks.length > 0) {
+    graph.addCells(identicalLinks);
 }
 
 // Fit paper to content and unfreeze
