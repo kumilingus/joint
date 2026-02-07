@@ -1,6 +1,6 @@
 import { dia, shapes } from '@joint/core';
 import { DirectedGraph } from '@joint/layout-directed-graph';
-import { MalePerson, FemalePerson, UnknownPerson } from './shapes';
+import { MalePerson, FemalePerson, UnknownPerson, ELEMENT_WIDTH, COUPLE_WIDTH, COUPLE_HEIGHT } from './shapes';
 import { getPersonNodes, getParentChildLinks, getMateLinks, PersonNode } from './data';
 import './styles.css';
 
@@ -54,11 +54,21 @@ const elements: dia.Element[] = persons.map((person) => {
     return el;
 });
 
-// Create couple containers — embed both partners so layout treats them as one unit
+// Create couple containers that will replace both partners in the layout.
+// The individual person elements are added to the graph but excluded from layout.
 const coupleContainers: dia.Element[] = [];
-const embeddedPersonIds = new Set<string>();
+const personIdToContainer = new Map<string, dia.Element>();
 // Map each person element ID to their partner's element ID
 const mateOf = new Map<string, string>();
+// Track which person IDs are part of a couple (excluded from layout)
+const coupledPersonIds = new Set<string>();
+
+interface CoupleInfo {
+    container: dia.Element;
+    fromId: string;
+    toId: string;
+}
+const coupleInfos: CoupleInfo[] = [];
 
 for (const ml of mateLinks) {
     if (!keyToId.has(ml.from) || !keyToId.has(ml.to)) continue;
@@ -67,9 +77,10 @@ for (const ml of mateLinks) {
     const toId = keyToId.get(ml.to)!;
 
     // Skip if either partner is already in a couple container
-    if (embeddedPersonIds.has(fromId) || embeddedPersonIds.has(toId)) continue;
+    if (coupledPersonIds.has(fromId) || coupledPersonIds.has(toId)) continue;
 
     const container = new shapes.standard.Rectangle({
+        size: { width: COUPLE_WIDTH, height: COUPLE_HEIGHT },
         attrs: {
             body: {
                 fill: 'transparent',
@@ -79,27 +90,39 @@ for (const ml of mateLinks) {
         }
     });
 
-    const fromEl = elements.find((e) => e.id === fromId)!;
-    const toEl = elements.find((e) => e.id === toId)!;
-    container.embed(fromEl);
-    container.embed(toEl);
-
-    embeddedPersonIds.add(fromId);
-    embeddedPersonIds.add(toId);
+    coupledPersonIds.add(fromId);
+    coupledPersonIds.add(toId);
     mateOf.set(fromId, toId);
     mateOf.set(toId, fromId);
+    personIdToContainer.set(fromId, container);
+    personIdToContainer.set(toId, container);
     coupleContainers.push(container);
+    coupleInfos.push({ container, fromId, toId });
 }
 
-// Create parent→child links (used for layout)
-const links: dia.Link[] = parentChildLinks.map((rel) => {
-    return new shapes.standard.Link({
-        source: {
-            id: keyToId.get(rel.parentKey)!,
-        },
-        target: {
-            id: keyToId.get(rel.childKey)!,
-        },
+// Resolve the layout ID for a person: container if coupled, own ID otherwise
+function layoutId(personElId: string): string {
+    const container = personIdToContainer.get(personElId);
+    return container ? container.id as string : personElId;
+}
+
+// Solo (non-coupled) person elements participate in layout directly
+const soloElements = elements.filter((el) => !coupledPersonIds.has(el.id as string));
+
+// Create parent→child links, pointing to containers for layout.
+// Store original person IDs so we can reconnect after layout.
+interface LinkInfo {
+    link: dia.Link;
+    realSourceId: string;
+    realTargetId: string;
+}
+const linkInfos: LinkInfo[] = parentChildLinks.map((rel) => {
+    const realSourceId = keyToId.get(rel.parentKey)!;
+    const realTargetId = keyToId.get(rel.childKey)!;
+
+    const link = new shapes.standard.Link({
+        source: { id: layoutId(realSourceId) },
+        target: { id: layoutId(realTargetId) },
         z: -1,
         attrs: {
             line: {
@@ -113,10 +136,12 @@ const links: dia.Link[] = parentChildLinks.map((rel) => {
             }
         }
     });
+    return { link, realSourceId, realTargetId };
 });
+const links = linkInfos.map((li) => li.link);
 
-// Add all cells to graph, then layout (containers first so embedding is recognized)
-graph.resetCells([...coupleContainers, ...elements, ...links]);
+// Layout only containers + solo elements + links
+graph.resetCells([...coupleContainers, ...soloElements, ...links]);
 
 DirectedGraph.layout(graph, {
     rankDir: 'TB',
@@ -127,33 +152,74 @@ DirectedGraph.layout(graph, {
     // setVertices: true
 });
 
-// For links starting in a couple, add a vertex at the midpoint of the two partners
-for (const link of links) {
-    const sourceId = (link.source() as { id: string }).id;
-    const partnerId = mateOf.get(sourceId);
-    if (!partnerId) continue;
+// Position couple members inside their containers and add them to the graph
+const gap = COUPLE_WIDTH - ELEMENT_WIDTH * 2;
+for (const { container, fromId, toId } of coupleInfos) {
+    const pos = container.position();
+    const fromEl = elements.find((e) => e.id === fromId)!;
+    const toEl = elements.find((e) => e.id === toId)!;
 
-    const sourceEl = graph.getCell(sourceId) as dia.Element;
-    const partnerEl = graph.getCell(partnerId) as dia.Element;
-    const sourceCenter = sourceEl.getBBox().center();
-    const partnerCenter = partnerEl.getBBox().center();
+    fromEl.position(pos.x, pos.y);
+    toEl.position(pos.x + ELEMENT_WIDTH + gap, pos.y);
+}
+// Add the coupled person elements to the graph
+const coupledElements = elements.filter((el) => coupledPersonIds.has(el.id as string));
+graph.addCells(coupledElements);
 
-    const targetId = (link.target() as { id: string }).id;
-    const targetEl = graph.getCell(targetId) as dia.Element;
-    const targetCenter = targetEl.getBBox().center();
+// Reconnect links from containers back to the real person elements and set vertices.
+const containerIdSet = new Set(coupleContainers.map((c) => c.id as string));
 
-    const midX = (sourceCenter.x + partnerCenter.x) / 2;
-    const midY = (sourceCenter.y + partnerCenter.y) / 2;
-    const halfwayY = (midY + targetCenter.y) / 2;
+for (const { link, realSourceId, realTargetId } of linkInfos) {
+    const sourceWasContainer = containerIdSet.has((link.source() as { id: string }).id);
+    const targetWasContainer = containerIdSet.has((link.target() as { id: string }).id);
 
-    link.vertices([
-        { x: midX, y: midY },
-        { x: midX, y: halfwayY },
-        { x: targetCenter.x, y: halfwayY }
-    ]);
+    // Reconnect to real persons
+    link.source({ id: realSourceId });
+    link.target({ id: realTargetId });
+
+    // If the source was a couple container, add vertices through the couple midpoint
+    if (sourceWasContainer) {
+        const partnerId = mateOf.get(realSourceId)!;
+        const sourceEl = graph.getCell(realSourceId) as dia.Element;
+        const partnerEl = graph.getCell(partnerId) as dia.Element;
+        const targetEl = graph.getCell(realTargetId) as dia.Element;
+
+        const sourceCenter = sourceEl.getBBox().center();
+        const partnerCenter = partnerEl.getBBox().center();
+        const targetCenter = targetEl.getBBox().center();
+
+        const midX = (sourceCenter.x + partnerCenter.x) / 2;
+        const midY = (sourceCenter.y + partnerCenter.y) / 2;
+        const halfwayY = (midY + targetCenter.y) / 2;
+
+        link.vertices([
+            { x: midX, y: midY },
+            { x: midX, y: halfwayY },
+            { x: targetCenter.x, y: halfwayY }
+        ]);
+    }
+
+    // If the target was a couple container, add a vertex to route into the correct person
+    if (targetWasContainer && !sourceWasContainer) {
+        const targetEl = graph.getCell(realTargetId) as dia.Element;
+        const targetCenter = targetEl.getBBox().center();
+        const sourceEl = graph.getCell(realSourceId) as dia.Element;
+        const sourceCenter = sourceEl.getBBox().center();
+        const halfwayY = (sourceCenter.y + targetCenter.y) / 2;
+
+        link.vertices([
+            { x: sourceCenter.x, y: halfwayY },
+            { x: targetCenter.x, y: halfwayY }
+        ]);
+    }
 }
 
-// Add mate (partner) links AFTER layout to avoid breaking the DAG
+// Remove containers from the graph — no longer needed
+for (const container of coupleContainers) {
+    container.remove();
+}
+
+// Add mate (partner) links
 const mateJointLinks: dia.Link[] = mateLinks
     .filter((ml) => keyToId.has(ml.from) && keyToId.has(ml.to))
     .map((ml) => {

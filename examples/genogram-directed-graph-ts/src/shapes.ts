@@ -21,8 +21,11 @@ const unknownMarkup = util.svg`
     <text @selector="label"/>
 `;
 
-const ELEMENT_WIDTH = 50;
-const ELEMENT_HEIGHT = 50;
+export const ELEMENT_WIDTH = 50;
+export const ELEMENT_HEIGHT = 50;
+const COUPLE_GAP = 10;
+export const COUPLE_WIDTH = ELEMENT_WIDTH * 2 + COUPLE_GAP;
+export const COUPLE_HEIGHT = ELEMENT_HEIGHT;
 
 const commonAttrs = {
     label: {
