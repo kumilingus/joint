@@ -25,8 +25,6 @@ const unknownMarkup = util.svg`
     <text @selector="name"/>
 `;
 
-// --- Dimensions ---
-
 const { elementWidth, elementHeight, crossPadding } = sizes;
 
 const commonAttrs = {
@@ -152,7 +150,7 @@ export class ParentChildLink extends shapes.standard.Link {
             z: -1,
             attrs: {
                 line: {
-                    stroke: '#0F1108',
+                    stroke: colors.dark,
                     strokeWidth: 1.5,
                     targetMarker: null,
                 }

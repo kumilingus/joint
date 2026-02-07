@@ -13,8 +13,8 @@ export interface PersonNode {
 }
 
 export interface ParentChildLink {
-    parentKey: number;
-    childKey: number;
+    parentId: number;
+    childId: number;
 }
 
 export interface MateLink {
@@ -28,14 +28,14 @@ export function getPersonNodes(): PersonNode[] {
 
 export function getParentChildLinks(persons: PersonNode[]): ParentChildLink[] {
     const links: ParentChildLink[] = [];
-    const personKeys = new Set(persons.map((p) => p.id));
+    const personIds = new Set(persons.map((p) => p.id));
 
     for (const person of persons) {
-        if (typeof person.mother === 'number' && personKeys.has(person.mother)) {
-            links.push({ parentKey: person.mother, childKey: person.id });
+        if (typeof person.mother === 'number' && personIds.has(person.mother)) {
+            links.push({ parentId: person.mother, childId: person.id });
         }
-        if (typeof person.father === 'number' && personKeys.has(person.father)) {
-            links.push({ parentKey: person.father, childKey: person.id });
+        if (typeof person.father === 'number' && personIds.has(person.father)) {
+            links.push({ parentId: person.father, childId: person.id });
         }
     }
 

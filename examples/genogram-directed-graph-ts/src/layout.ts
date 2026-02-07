@@ -14,12 +14,10 @@ interface LayoutInput {
 
 export function layoutGenogram({ graph, elements, persons, parentChildLinks, mateLinks }: LayoutInput): void {
 
-    // Build lookups from person id / element ID to PersonNode
+    // Build lookup from person id to PersonNode
     const personById = new Map<number, PersonNode>();
-    const personByElId = new Map<string, PersonNode>();
     for (const person of persons) {
         personById.set(person.id, person);
-        personByElId.set(String(person.id), person);
     }
 
     // Create couple containers that will replace both partners in the layout.
@@ -75,8 +73,8 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
     const layoutAdj = new Map<string, Set<string>>();
     const layoutIncoming = new Map<string, Set<string>>();
     for (const rel of parentChildLinks) {
-        const src = layoutId(String(rel.parentKey));
-        const tgt = layoutId(String(rel.childKey));
+        const src = layoutId(String(rel.parentId));
+        const tgt = layoutId(String(rel.childId));
         if (src === tgt) continue;
         if (!layoutAdj.has(src)) layoutAdj.set(src, new Set());
         layoutAdj.get(src)!.add(tgt);
@@ -113,7 +111,7 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
     const maxRank = Math.max(0, ...nodeRank.values());
     const linksBySourceRank = new Map<number, ParentChildLink[]>();
     for (const rel of parentChildLinks) {
-        const src = layoutId(String(rel.parentKey));
+        const src = layoutId(String(rel.parentId));
         const rank = nodeRank.get(src) ?? 0;
         if (!linksBySourceRank.has(rank)) linksBySourceRank.set(rank, []);
         linksBySourceRank.get(rank)!.push(rel);
@@ -274,23 +272,23 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
 
         // Sort by: 1) source node's established order, 2) child birth date, 3) child id
         rankedLinks.sort((a, b) => {
-            const srcA = layoutId(String(a.parentKey));
-            const srcB = layoutId(String(b.parentKey));
+            const srcA = layoutId(String(a.parentId));
+            const srcB = layoutId(String(b.parentId));
             const orderA = nodeOrder.get(srcA) ?? Infinity;
             const orderB = nodeOrder.get(srcB) ?? Infinity;
             if (orderA !== orderB) return orderA - orderB;
 
-            const childA = personById.get(a.childKey)!;
-            const childB = personById.get(b.childKey)!;
+            const childA = personById.get(a.childId)!;
+            const childB = personById.get(b.childId)!;
             const birthCmp = (childA.dob || '').localeCompare(childB.dob || '');
             if (birthCmp !== 0) return birthCmp;
 
-            return a.childKey - b.childKey;
+            return a.childId - b.childId;
         });
 
         // Establish order for child layout nodes based on the sorted link order
         for (const rel of rankedLinks) {
-            const tgt = layoutId(String(rel.childKey));
+            const tgt = layoutId(String(rel.childId));
             if (!nodeOrder.has(tgt)) {
                 nodeOrder.set(tgt, orderIdx++);
             }
@@ -320,8 +318,8 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
     const linkInfos: LinkInfo[] = [];
     const layoutEdgeSet = new Set<string>();
     for (const rel of parentChildLinks) {
-        const realSourceId = String(rel.parentKey);
-        const realTargetId = String(rel.childKey);
+        const realSourceId = String(rel.parentId);
+        const realTargetId = String(rel.childId);
         const srcLayout = layoutId(realSourceId);
         const tgtLayout = layoutId(realTargetId);
         const edgeKey = `${srcLayout}→${tgtLayout}`;
@@ -368,7 +366,7 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
 
     function getParentX(personElId: string): number {
         // Find the person's parent layout nodes and return average X position
-        const person = personByElId.get(personElId);
+        const person = personById.get(Number(personElId));
         if (!person) return Infinity;
         const parentIds: number[] = [];
         if (typeof person.mother === 'number') parentIds.push(person.mother);
@@ -411,7 +409,7 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
     // Identify twin/triplet groups: key = "sourceContainerId|multipleValue"
     // A child is a twin/triplet if it has a `multiple` field
     function twinGroupKey(sourceContainerId: string, targetPersonId: string): string | null {
-        const person = personByElId.get(targetPersonId);
+        const person = personById.get(Number(targetPersonId));
         if (!person || person.multiple === undefined) return null;
         return `${sourceContainerId}|${person.multiple}`;
     }
