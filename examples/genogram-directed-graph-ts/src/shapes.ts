@@ -23,7 +23,7 @@ const unknownMarkup = util.svg`
 
 export const ELEMENT_WIDTH = 50;
 export const ELEMENT_HEIGHT = 50;
-const COUPLE_GAP = 10;
+const COUPLE_GAP = 20;
 export const COUPLE_WIDTH = ELEMENT_WIDTH * 2 + COUPLE_GAP;
 export const COUPLE_HEIGHT = ELEMENT_HEIGHT;
 

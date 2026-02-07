@@ -122,17 +122,15 @@ const linkInfos: LinkInfo[] = parentChildLinks.map((rel) => {
 
     const link = new shapes.standard.Link({
         source: { id: layoutId(realSourceId) },
-        target: { id: layoutId(realTargetId) },
+        target: {
+            id: layoutId(realTargetId),
+        },
         z: -1,
         attrs: {
             line: {
                 stroke: '#666',
                 strokeWidth: 1.5,
-                targetMarker: {
-                    type: 'path',
-                    d: 'M 10 -5 0 0 10 5 z',
-                    fill: '#666'
-                }
+                targetMarker: null,
             }
         }
     });
@@ -149,7 +147,8 @@ DirectedGraph.layout(graph, {
     rankSep: 70,
     ranker: 'tight-tree',
     // align: 'DR',
-    // setVertices: true
+    // setVertices: true,
+    disableOptimalOrderHeuristic: true
 });
 
 // Position couple members inside their containers and add them to the graph
@@ -166,16 +165,59 @@ for (const { container, fromId, toId } of coupleInfos) {
 const coupledElements = elements.filter((el) => coupledPersonIds.has(el.id as string));
 graph.addCells(coupledElements);
 
+// Build lookup: element ID → multiple group (for twins/triplets)
+const personByElId = new Map<string, PersonNode>();
+for (const person of persons) {
+    const elId = keyToId.get(person.key);
+    if (elId) personByElId.set(elId, person);
+}
+
+// Identify twin/triplet groups: key = "sourceContainerId|multipleValue"
+// A child is a twin/triplet if it has a `multiple` field
+function twinGroupKey(sourceContainerId: string, targetPersonId: string): string | null {
+    const person = personByElId.get(targetPersonId);
+    if (!person || person.multiple === undefined) return null;
+    return `${sourceContainerId}|${person.multiple}`;
+}
+
 // Reconnect links from containers back to the real person elements and set vertices.
 const containerIdSet = new Set(coupleContainers.map((c) => c.id as string));
 
+// Pre-compute twin/triplet group fork points (average X of members in each group)
+const twinGroupMembers = new Map<string, string[]>(); // groupKey → [targetElId, ...]
+for (const { realSourceId, realTargetId } of linkInfos) {
+    const sourceContainer = personIdToContainer.get(realSourceId);
+    if (!sourceContainer) continue;
+    const gKey = twinGroupKey(sourceContainer.id as string, realTargetId);
+    if (!gKey) continue;
+    const members = twinGroupMembers.get(gKey) || [];
+    members.push(realTargetId);
+    twinGroupMembers.set(gKey, members);
+}
+
+const twinGroupForkX = new Map<string, number>();
+for (const [gKey, memberIds] of twinGroupMembers) {
+    // Only treat as a twin/triplet group if there are 2+ members
+    if (memberIds.length < 2) continue;
+    const uniqueIds = [...new Set(memberIds)];
+    const avgX = uniqueIds.reduce((sum, id) => {
+        return sum + (graph.getCell(id) as dia.Element).getBBox().center().x;
+    }, 0) / uniqueIds.length;
+    twinGroupForkX.set(gKey, avgX);
+}
+
 for (const { link, realSourceId, realTargetId } of linkInfos) {
-    const sourceWasContainer = containerIdSet.has((link.source() as { id: string }).id);
-    const targetWasContainer = containerIdSet.has((link.target() as { id: string }).id);
+    const sourceLayoutId = (link.source() as { id: string }).id;
+    const targetLayoutId = (link.target() as { id: string }).id;
+    const sourceWasContainer = containerIdSet.has(sourceLayoutId);
+    const targetWasContainer = containerIdSet.has(targetLayoutId);
 
     // Reconnect to real persons
     link.source({ id: realSourceId });
-    link.target({ id: realTargetId });
+    link.target({
+        id: realTargetId,
+        anchor: { name: 'top', args: { useModelGeometry: true } }
+     });
 
     // If the source was a couple container, add vertices through the couple midpoint
     if (sourceWasContainer) {
@@ -192,11 +234,24 @@ for (const { link, realSourceId, realTargetId } of linkInfos) {
         const midY = (sourceCenter.y + partnerCenter.y) / 2;
         const halfwayY = (midY + targetCenter.y) / 2;
 
-        link.vertices([
-            { x: midX, y: midY },
-            { x: midX, y: halfwayY },
-            { x: targetCenter.x, y: halfwayY }
-        ]);
+        // Check if this target belongs to a twin/triplet group
+        const gKey = twinGroupKey(sourceLayoutId, realTargetId);
+        const forkX = gKey ? twinGroupForkX.get(gKey) : undefined;
+
+        if (forkX !== undefined) {
+            // Twins/triplets: shared fork point at the group's center X
+            link.vertices([
+                { x: midX, y: midY },
+                { x: midX, y: halfwayY },
+                { x: forkX, y: halfwayY }
+            ]);
+        } else {
+            link.vertices([
+                { x: midX, y: midY },
+                { x: midX, y: halfwayY },
+                { x: targetCenter.x, y: halfwayY }
+            ]);
+        }
     }
 
     // If the target was a couple container, add a vertex to route into the correct person
