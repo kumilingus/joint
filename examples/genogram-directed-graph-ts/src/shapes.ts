@@ -27,11 +27,7 @@ const unknownMarkup = util.svg`
 
 // --- Dimensions ---
 
-const { elementWidth: ELEMENT_WIDTH, elementHeight: ELEMENT_HEIGHT, coupleGap: COUPLE_GAP, crossPadding: CROSS_PADDING } = sizes;
-
-export { ELEMENT_WIDTH, ELEMENT_HEIGHT };
-export const COUPLE_WIDTH = ELEMENT_WIDTH * 2 + COUPLE_GAP;
-export const COUPLE_HEIGHT = ELEMENT_HEIGHT;
+const { elementWidth, elementHeight, crossPadding } = sizes;
 
 const commonAttrs = {
     ageLabel: {
@@ -67,7 +63,7 @@ const commonAttrs = {
         stroke: colors.dark,
         strokeWidth: 2,
         fill: 'none',
-        d: `M ${CROSS_PADDING} ${CROSS_PADDING} calc(w-${CROSS_PADDING}) calc(h-${CROSS_PADDING}) M calc(w-${CROSS_PADDING}) ${CROSS_PADDING} ${CROSS_PADDING} calc(h-${CROSS_PADDING})`,
+        d: `M ${crossPadding} ${crossPadding} calc(w-${crossPadding}) calc(h-${crossPadding}) M calc(w-${crossPadding}) ${crossPadding} ${crossPadding} calc(h-${crossPadding})`,
         strokeLinecap: 'round' as const
     }
 };
@@ -77,7 +73,7 @@ export class MalePerson extends dia.Element {
         return {
             ...super.defaults,
             type: 'genogram.MalePerson',
-            size: { width: ELEMENT_WIDTH, height: ELEMENT_HEIGHT },
+            size: { width: elementWidth, height: elementHeight },
             attrs: {
                 body: {
                     width: 'calc(w)',
@@ -103,7 +99,7 @@ export class FemalePerson extends dia.Element {
         return {
             ...super.defaults,
             type: 'genogram.FemalePerson',
-            size: { width: ELEMENT_WIDTH, height: ELEMENT_HEIGHT },
+            size: { width: elementWidth, height: elementHeight },
             attrs: {
                 body: {
                     cx: 'calc(0.5*w)',
@@ -129,7 +125,7 @@ export class UnknownPerson extends dia.Element {
         return {
             ...super.defaults,
             type: 'genogram.UnknownPerson',
-            size: { width: ELEMENT_WIDTH, height: ELEMENT_HEIGHT },
+            size: { width: elementWidth, height: elementHeight },
             attrs: {
                 body: {
                     points: `calc(0.5*w),0 calc(w),calc(0.5*h) calc(0.5*w),calc(h) 0,calc(0.5*h)`,
