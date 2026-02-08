@@ -54,54 +54,29 @@ paper.unfreeze();
 
 // --- Hover highlighting: ancestors & descendants ---
 
-// Build family tree lookups by person id
-const childToParentIds = new Map<number, number[]>();
-const parentToChildIds = new Map<number, number[]>();
-for (const person of persons) {
-    const parentIds: number[] = [];
-    if (typeof person.mother === 'number') parentIds.push(person.mother);
-    if (typeof person.father === 'number') parentIds.push(person.father);
-    childToParentIds.set(person.id, parentIds);
-    for (const pid of parentIds) {
-        if (!parentToChildIds.has(pid)) parentToChildIds.set(pid, []);
-        parentToChildIds.get(pid)!.push(person.id);
-    }
-}
-
-function getAncestors(id: number, visited = new Set<number>()): Set<number> {
-    for (const parentId of childToParentIds.get(id) || []) {
-        if (visited.has(parentId)) continue;
-        visited.add(parentId);
-        getAncestors(parentId, visited);
-    }
-    return visited;
-}
-
-function getDescendants(id: number, visited = new Set<number>()): Set<number> {
-    for (const childId of parentToChildIds.get(id) || []) {
-        if (visited.has(childId)) continue;
-        visited.add(childId);
-        getDescendants(childId, visited);
-    }
-    return visited;
-}
-
-const personIds = new Set(persons.map((p) => String(p.id)));
+// Build a family-tree graph (persons + parent-child links only) for traversal
+const familyTree = new dia.Graph({}, { cellNamespace });
+familyTree.resetCells([
+    ...persons.map((p) => new dia.Element({ type: 'family-element', id: String(p.id) })),
+    ...parentChildLinks.map((rel) => new dia.Link({
+        type: 'family-link',
+        source: { id: String(rel.parentId) },
+        target: { id: String(rel.childId) },
+    }))
+]);
 
 const HIGHLIGHT_DIM = 'lineage-dim';
 const HIGHLIGHT_FOCUS = 'lineage-focus';
 
 paper.on('element:mouseenter', (cellView: dia.ElementView) => {
-    const elId = cellView.model.id as string;
-    if (!personIds.has(elId)) return;
-    const personId = Number(elId);
+    const treeEl = familyTree.getCell(cellView.model.id) as dia.Element;
+    if (!treeEl) return;
 
-    const relatedIds = new Set<number>([personId]);
-    for (const k of getAncestors(personId)) relatedIds.add(k);
-    for (const k of getDescendants(personId)) relatedIds.add(k);
-
-    const relatedElIds = new Set<string>();
-    for (const k of relatedIds) relatedElIds.add(String(k));
+    const relatedElIds = new Set<string>([
+        treeEl.id as string,
+        ...familyTree.getPredecessors(treeEl).map((el) => el.id as string),
+        ...familyTree.getSuccessors(treeEl).map((el) => el.id as string),
+    ]);
 
     // Highlight hovered element with stroke
     highlighters.stroke.add(cellView, 'body', HIGHLIGHT_FOCUS, {
@@ -145,44 +120,32 @@ paper.on('element:mouseleave', () => {
 
 // --- Helpers ---
 
-function createPersonElement(person: PersonNode): dia.Element {
-    let el: dia.Element;
-
-    switch (person.sex) {
-        case 'M':
-            el = new MalePerson({ id: String(person.id) });
-            break;
-        case 'F':
-            el = new FemalePerson({ id: String(person.id) });
-            break;
-        default:
-            el = new UnknownPerson({ id: String(person.id) });
-            break;
+function computeAge(dob: string, dod?: string): number {
+    const birthDate = new Date(dob);
+    const endDate = dod ? new Date(dod) : new Date();
+    let age = endDate.getFullYear() - birthDate.getFullYear();
+    const monthDiff = endDate.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && endDate.getDate() < birthDate.getDate())) {
+        age--;
     }
+    return age;
+}
 
-    el.attr('name/text', person.name);
-
-    // Tooltip with full name and dates
+function createPersonElement(person: PersonNode): dia.Element {
+    const ShapeClass = person.sex === 'M' ? MalePerson : person.sex === 'F' ? FemalePerson : UnknownPerson;
     const birthYear = person.dob ? person.dob.slice(0, 4) : '?';
     const deathYear = person.dod ? person.dod.slice(0, 4) : '*';
-    el.attr('root/title', `${person.name} (${birthYear}–${deathYear})`);
 
-    // Compute and display age
+    const attrs: Record<string, Record<string, unknown>> = {
+        root: { title: `${person.name} (${birthYear}–${deathYear})` },
+        name: { text: person.name },
+    };
     if (person.dob) {
-        const birthDate = new Date(person.dob);
-        const endDate = person.dod ? new Date(person.dod) : new Date();
-        let age = endDate.getFullYear() - birthDate.getFullYear();
-        const monthDiff = endDate.getMonth() - birthDate.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && endDate.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        el.attr('ageLabel/text', String(age));
+        attrs.ageLabel = { text: String(computeAge(person.dob, person.dod)) };
     }
-
-    // Deceased: show cross
     if (person.dod) {
-        el.attr('deceasedCross/display', 'block');
+        attrs.deceasedCross = { display: 'block' };
     }
 
-    return el;
+    return new ShapeClass({ id: String(person.id), attrs });
 }
