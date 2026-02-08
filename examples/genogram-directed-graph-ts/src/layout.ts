@@ -12,21 +12,49 @@ interface LayoutInput {
     mateLinks: MateLink[];
 }
 
+// Layout a genogram as a directed graph (top-to-bottom family tree).
+//
+// The layout is performed in 6 steps:
+//
+// 1. COUPLE CONTAINERS — Replace each mated pair with a single wide rectangle
+//    so dagre treats the couple as one node and keeps partners side by side.
+//
+// 2. LINK SORTING — Sort parent→child links rank by rank (top to bottom) to
+//    control the left-to-right order dagre assigns to siblings. Roots are
+//    ordered by connection-graph BFS (grouping families whose children married),
+//    deeper ranks use a barycenter heuristic (average parent position).
+//
+// 3. DAGRE LAYOUT — Run DirectedGraph.layout on the containers, solo elements,
+//    and deduplicated links (one edge per couple→child, not two).
+//
+// 4. COUPLE POSITIONING — Place each partner inside their container (left/right
+//    decided by which partner's parents are further left in the layout).
+//
+// 5. LINK RECONNECTION & ROUTING — Reconnect links from containers back to the
+//    real person elements. Add vertices so links route through the couple
+//    midpoint, with a shared fork point for twins/triplets.
+//
+// 6. MATE & IDENTICAL LINKS — Add horizontal mate (partner) links and dashed
+//    link-to-link connections between identical twins/triplets.
+//
 export function layoutGenogram({ graph, elements, persons, parentChildLinks, mateLinks }: LayoutInput): void {
 
-    // Build lookup from person id to PersonNode
     const personById = new Map<number, PersonNode>();
     for (const person of persons) {
         personById.set(person.id, person);
     }
 
-    // Create couple containers that will replace both partners in the layout.
-    // The individual person elements are added to the graph but excluded from layout.
+    // -----------------------------------------------------------------------
+    // Step 1: Couple containers
+    // -----------------------------------------------------------------------
+    // For each mated pair, create an invisible rectangle (couple container)
+    // that is wide enough to hold both partners side by side. During layout,
+    // dagre sees this single node instead of two separate ones — this keeps
+    // partners on the same rank and horizontally adjacent.
+
     const coupleContainers: dia.Element[] = [];
     const personIdToContainer = new Map<string, dia.Element>();
-    // Map each person element ID to their partner's element ID
     const mateOf = new Map<string, string>();
-    // Track which person IDs are part of a couple (excluded from layout)
     const coupledPersonIds = new Set<string>();
 
     interface CoupleInfo {
@@ -40,7 +68,6 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         const fromId = String(ml.from);
         const toId = String(ml.to);
 
-        // Skip if either partner is already in a couple container
         if (coupledPersonIds.has(fromId) || coupledPersonIds.has(toId)) continue;
 
         const container = new shapes.standard.Rectangle({
@@ -57,19 +84,24 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         coupleInfos.push({ container, fromId, toId });
     }
 
-    // Resolve the layout ID for a person: container if coupled, own ID otherwise
+    // Resolve the layout ID for a person: container if coupled, own ID otherwise.
     function layoutId(personElId: string): string {
         const container = personIdToContainer.get(personElId);
         return container ? container.id as string : personElId;
     }
 
-    // Solo (non-coupled) person elements participate in layout directly
+    // Solo (non-coupled) person elements participate in layout directly.
     const soloElements = elements.filter((el) => !coupledPersonIds.has(el.id as string));
 
-    // Sort links layer by layer (top → bottom) so dagre orders each rank correctly.
-    // Processing rank N first establishes the node order used to sort rank N+1.
+    // -----------------------------------------------------------------------
+    // Step 2: Link sorting (pre-layout node ordering)
+    // -----------------------------------------------------------------------
+    // Dagre's `disableOptimalOrderHeuristic` gives us control over left-to-right
+    // node order by respecting the order links are added to the graph. We sort
+    // links rank by rank so that siblings appear in birth-date order and related
+    // families stay close together.
 
-    // Build layout-level adjacency and compute ranks via BFS
+    // Build layout-level adjacency (parent→children, child→parents).
     const layoutAdj = new Map<string, Set<string>>();
     const layoutIncoming = new Map<string, Set<string>>();
     for (const rel of parentChildLinks) {
@@ -82,6 +114,7 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         layoutIncoming.get(tgt)!.add(src);
     }
 
+    // Compute ranks via BFS from roots (nodes with no incoming edges).
     const allLayoutNodeIds = [
         ...coupleContainers.map((c) => c.id as string),
         ...soloElements.map((e) => e.id as string)
@@ -107,7 +140,6 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         bfsQueue = next;
     }
 
-    // Group links by their source's rank
     const maxRank = Math.max(0, ...nodeRank.values());
     const linksBySourceRank = new Map<number, ParentChildLink[]>();
     for (const rel of parentChildLinks) {
@@ -117,24 +149,22 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         linksBySourceRank.get(rank)!.push(rel);
     }
 
-    // Collect layout nodes by rank
     const nodesByRank = new Map<number, string[]>();
     for (const [id, rank] of nodeRank) {
         if (!nodesByRank.has(rank)) nodesByRank.set(rank, []);
         nodesByRank.get(rank)!.push(id);
     }
 
-    // Reorder nodes at a given rank to minimize edge crossings.
-    // Rank 0 (roots): use connection-graph BFS — groups nodes that share children.
-    // Other ranks: use barycenter heuristic — average parent order from previous rank.
+    // Node ordering: assigns a global sequence number to each layout node.
+    // Nodes with lower order numbers are placed further left by dagre.
     const nodeOrder = new Map<string, number>();
     let orderIdx = 0;
     for (const r of roots) nodeOrder.set(r, orderIdx++);
 
+    // Reorder nodes at a given rank to minimize edge crossings.
     function refineRankOrder(rank: number) {
         const nodesAtRank = nodesByRank.get(rank) || [];
         if (nodesAtRank.length <= 1) return;
-
         if (rank === 0) {
             refineByConnectionBFS(nodesAtRank);
         } else {
@@ -142,6 +172,7 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         }
     }
 
+    // Barycenter heuristic: place each node at the average position of its parents.
     function refineByBarycenter(nodesAtRank: string[]) {
         const barycenter = new Map<string, number>();
         for (const nodeId of nodesAtRank) {
@@ -174,10 +205,12 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         }
     }
 
+    // Connection-graph BFS (roots only): group nodes that share children
+    // (i.e. families whose kids married each other) so they end up adjacent.
     function refineByConnectionBFS(nodesAtRank: string[]) {
         const rankNodeSet = new Set(nodesAtRank);
 
-        // Build connections: two nodes are connected if they share a child
+        // Two root nodes are "connected" if they share a child in the graph.
         const connections = new Map<string, Set<string>>();
         for (const nodeId of nodesAtRank) {
             const children = layoutAdj.get(nodeId);
@@ -206,6 +239,7 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         for (const seedNode of sortedNodes) {
             if (visited.has(seedNode)) continue;
 
+            // Find the connected component containing this seed node.
             const componentSet = new Set<string>();
             const findStack = [seedNode];
             while (findStack.length > 0) {
@@ -226,7 +260,7 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
                 continue;
             }
 
-            // Start BFS from the node with minimum degree (end of a chain)
+            // BFS from the node with minimum degree (end of a chain).
             let startNode = seedNode;
             let bestDegree = Infinity;
             let bestOrder = Infinity;
@@ -261,16 +295,14 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         }
     }
 
-    // Process rank by rank: refine order, sort links, then record child order for the next rank
-
-    // Refine root order first (group roots whose children married each other)
+    // Process rank by rank: refine order, sort links, record child order.
     refineRankOrder(0);
 
     const sortedLinks: ParentChildLink[] = [];
     for (let rank = 0; rank <= maxRank; rank++) {
         const rankedLinks = linksBySourceRank.get(rank) || [];
 
-        // Sort by: 1) source node's established order, 2) child birth date, 3) child id
+        // Sort by: 1) source node order, 2) child birth date, 3) child id.
         rankedLinks.sort((a, b) => {
             const srcA = layoutId(String(a.parentId));
             const srcB = layoutId(String(b.parentId));
@@ -286,7 +318,6 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
             return a.childId - b.childId;
         });
 
-        // Establish order for child layout nodes based on the sorted link order
         for (const rel of rankedLinks) {
             const tgt = layoutId(String(rel.childId));
             if (!nodeOrder.has(tgt)) {
@@ -296,20 +327,21 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
 
         sortedLinks.push(...rankedLinks);
 
-        // Refine the next rank's order: group nodes that share a child
         if (rank < maxRank) {
             refineRankOrder(rank + 1);
         }
     }
 
-    // Replace parentChildLinks contents with sorted order
     parentChildLinks.length = 0;
     parentChildLinks.push(...sortedLinks);
 
-    // Create parent→child links, pointing to containers for layout.
-    // Store original person IDs so we can reconnect after layout.
-    // Deduplicate at layout level: when both parents are in the same couple, only one
-    // layout edge is needed (dagre gets confused by duplicate edges).
+    // -----------------------------------------------------------------------
+    // Step 3: Dagre layout
+    // -----------------------------------------------------------------------
+    // Create JointJS links pointing to layout nodes (containers or solo elements).
+    // Deduplicate: when both parents share a container, only one layout edge is
+    // needed (dagre does not handle duplicate edges well).
+
     interface LinkInfo {
         link: dia.Link;
         realSourceId: string;
@@ -323,7 +355,6 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         const srcLayout = layoutId(realSourceId);
         const tgtLayout = layoutId(realTargetId);
         const edgeKey = `${srcLayout}→${tgtLayout}`;
-        // Skip duplicate layout-level edges (but always create the LinkInfo for reconnection)
         const isDuplicate = layoutEdgeSet.has(edgeKey);
         layoutEdgeSet.add(edgeKey);
 
@@ -333,15 +364,12 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         });
         linkInfos.push({ link, realSourceId, realTargetId });
         if (isDuplicate) {
-            // Mark duplicate links — they won't participate in layout but will be
-            // reconnected and added to the graph after layout
             (link as any)._layoutDuplicate = true;
         }
     }
     const links = linkInfos.map((li) => li.link);
     const layoutLinks = links.filter((l) => !(l as any)._layoutDuplicate);
 
-    // Layout only containers + solo elements + deduplicated links
     graph.resetCells([...coupleContainers, ...soloElements, ...layoutLinks]);
 
     DirectedGraph.layout(graph, {
@@ -349,23 +377,24 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         nodeSep: sizes.nodeSep,
         rankSep: sizes.rankSep,
         ranker: 'tight-tree',
-        // align: 'DR',
-        // setVertices: true,
         disableOptimalOrderHeuristic: true
     });
 
-    // Add duplicate links back to the graph (they were excluded from layout)
+    // Add duplicate links back (they were excluded from layout).
     const duplicateLinks = links.filter((l) => (l as any)._layoutDuplicate);
     if (duplicateLinks.length > 0) {
         graph.addCells(duplicateLinks);
     }
 
-    // Position couple members inside their containers.
-    // Place the partner whose family is further left on the left side.
+    // -----------------------------------------------------------------------
+    // Step 4: Couple positioning
+    // -----------------------------------------------------------------------
+    // Place each partner inside their container. The partner whose parents are
+    // further left goes on the left side.
+
     const gap = sizes.coupleGap;
 
     function getParentX(personElId: string): number {
-        // Find the person's parent layout nodes and return average X position
         const person = personById.get(Number(personElId));
         if (!person) return Infinity;
         const parentIds: number[] = [];
@@ -391,7 +420,6 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         const fromEl = elements.find((e) => e.id === fromId)!;
         const toEl = elements.find((e) => e.id === toId)!;
 
-        // Decide who goes left: the partner whose parents are further left
         const fromParentX = getParentX(fromId);
         const toParentX = getParentX(toId);
 
@@ -402,23 +430,28 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         leftEl.position(pos.x, pos.y);
         rightEl.position(pos.x + sizes.elementWidth + gap, pos.y);
     }
-    // Add the coupled person elements to the graph
+
     const coupledElements = elements.filter((el) => coupledPersonIds.has(el.id as string));
     graph.addCells(coupledElements);
 
-    // Identify twin/triplet groups: key = "sourceContainerId|multipleValue"
-    // A child is a twin/triplet if it has a `multiple` field
+    // -----------------------------------------------------------------------
+    // Step 5: Link reconnection & routing
+    // -----------------------------------------------------------------------
+    // Links currently point to containers. Reconnect them to the real person
+    // elements and add vertices so each link routes through the couple midpoint
+    // (the point between the two partners). For twins/triplets, links share a
+    // common fork point at the average X of the group members.
+
     function twinGroupKey(sourceContainerId: string, targetPersonId: string): string | null {
         const person = personById.get(Number(targetPersonId));
         if (!person || person.multiple === undefined) return null;
         return `${sourceContainerId}|${person.multiple}`;
     }
 
-    // Reconnect links from containers back to the real person elements and set vertices.
     const containerIdSet = new Set(coupleContainers.map((c) => c.id as string));
 
-    // Pre-compute twin/triplet group fork points (average X of members in each group)
-    const twinGroupMembers = new Map<string, string[]>(); // groupKey → [targetElId, ...]
+    // Pre-compute twin/triplet fork points (average X of group members).
+    const twinGroupMembers = new Map<string, string[]>();
     for (const { realSourceId, realTargetId } of linkInfos) {
         const sourceContainer = personIdToContainer.get(realSourceId);
         if (!sourceContainer) continue;
@@ -431,7 +464,6 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
 
     const twinGroupForkX = new Map<string, number>();
     for (const [gKey, memberIds] of twinGroupMembers) {
-        // Only treat as a twin/triplet group if there are 2+ members
         if (memberIds.length < 2) continue;
         const uniqueIds = [...new Set(memberIds)];
         const avgX = uniqueIds.reduce((sum, id) => {
@@ -446,14 +478,14 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         const sourceWasContainer = containerIdSet.has(sourceLayoutId);
         const targetWasContainer = containerIdSet.has(targetLayoutId);
 
-        // Reconnect to real persons
+        // Reconnect to real person elements.
         link.source({ id: realSourceId });
         link.target({
             id: realTargetId,
             anchor: { name: 'top', args: { useModelGeometry: true } }
          });
 
-        // If the source was a couple container, add vertices through the couple midpoint
+        // Route through couple midpoint when source was a container.
         if (sourceWasContainer) {
             const partnerId = mateOf.get(realSourceId)!;
             const sourceEl = graph.getCell(realSourceId) as dia.Element;
@@ -468,12 +500,11 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
             const midY = (sourceCenter.y + partnerCenter.y) / 2;
             const halfwayY = (midY + targetCenter.y) / 2;
 
-            // Check if this target belongs to a twin/triplet group
             const gKey = twinGroupKey(sourceLayoutId, realTargetId);
             const forkX = gKey ? twinGroupForkX.get(gKey) : undefined;
 
             if (forkX !== undefined) {
-                // Twins/triplets: shared fork point at the group's center X
+                // Twins/triplets: shared fork point at the group's center X.
                 link.vertices([
                     { x: midX, y: midY },
                     { x: midX, y: halfwayY },
@@ -488,7 +519,7 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
             }
         }
 
-        // If the target was a couple container, add a vertex to route into the correct person
+        // Route into the correct person when target was a container.
         if (targetWasContainer && !sourceWasContainer) {
             const targetEl = graph.getCell(realTargetId) as dia.Element;
             const targetCenter = targetEl.getBBox().center();
@@ -503,12 +534,18 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         }
     }
 
-    // Remove containers from the graph — no longer needed
+    // Containers are no longer needed.
     for (const container of coupleContainers) {
         container.remove();
     }
 
-    // Add mate (partner) links
+    // -----------------------------------------------------------------------
+    // Step 6: Mate & identical links
+    // -----------------------------------------------------------------------
+    // Add horizontal mate links between partners and dashed link-to-link
+    // connections between identical twins/triplets. These are visual-only and
+    // were not part of the dagre layout (they would break the DAG structure).
+
     const mateJointLinks: dia.Link[] = mateLinks.map((ml) => {
         return new MateLinkShape({
             source: {
@@ -526,9 +563,12 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         graph.addCells(mateJointLinks);
     }
 
-    // Compute anchor ratio for positioning link-to-link anchors near target end
+    // Identical twin/triplet links: connect two parent→child links with a
+    // dashed line using connectionRatio anchors (link-to-link connection).
     const ANCHOR_VERTICAL_OFFSET = sizes.rankSep / 4;
 
+    // Compute the ratio along a link's path at a given vertical offset from
+    // the target end. Used to position link-to-link anchors consistently.
     function computeAnchorRatio(link: dia.Link, verticalOffset: number): number {
         const sourceEl = graph.getCell((link.source() as { id: string }).id) as dia.Element;
         const targetEl = graph.getCell((link.target() as { id: string }).id) as dia.Element;
@@ -536,13 +576,11 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
 
         const srcBBox = sourceEl.getBBox();
         const tgtBBox = targetEl.getBBox();
-        // Source uses default 'center' anchor; target uses 'top' anchor
         const srcPt = { x: srcBBox.x + srcBBox.width / 2, y: srcBBox.y + srcBBox.height / 2 };
         const tgtPt = { x: tgtBBox.x + tgtBBox.width / 2, y: tgtBBox.y };
         const vertices = link.vertices() || [];
         const points: { x: number; y: number }[] = [srcPt, ...vertices, tgtPt];
 
-        // Compute segment lengths
         const segLengths: number[] = [];
         for (let i = 1; i < points.length; i++) {
             const dx = points[i].x - points[i - 1].x;
@@ -552,14 +590,13 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         const totalLength = segLengths.reduce((a, b) => a + b, 0);
         if (totalLength === 0) return 0.85;
 
-        // Walk backwards from target to find the path distance at the desired vertical offset
+        // Walk backwards from the target to find the distance at the offset.
         let remainingVertical = verticalOffset;
         let distFromEnd = 0;
         for (let i = points.length - 1; i > 0; i--) {
             const dy = Math.abs(points[i].y - points[i - 1].y);
             const segLen = segLengths[i - 1];
             if (dy >= remainingVertical && dy > 0) {
-                // Anchor falls within this segment
                 distFromEnd += (remainingVertical / dy) * segLen;
                 break;
             }
@@ -570,8 +607,6 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         return Math.max(0.01, Math.min(0.99, 1 - distFromEnd / totalLength));
     }
 
-    // Add link-to-link connections for identical multiples (identical twins/triplets)
-    // Build a lookup: child element ID → one of its parent→child links
     const childElIdToLink = new Map<string, dia.Link>();
     for (const { link, realTargetId } of linkInfos) {
         if (!childElIdToLink.has(realTargetId)) {
@@ -586,7 +621,6 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
         const personElId = String(person.id);
         const identicalElId = String(person.identical);
 
-        // Avoid duplicates (A→B and B→A)
         const pairKey = [person.id, person.identical].sort().join('|');
         if (processedIdenticalPairs.has(pairKey)) continue;
         processedIdenticalPairs.add(pairKey);
