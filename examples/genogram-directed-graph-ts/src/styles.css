@@ -5,6 +5,13 @@
     left: 0;
     bottom: 0;
     overflow: scroll;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.joint-paper {
+    border: 1px solid #e2e8dd;
 }
 
 .joint-cells-layer .joint-cell {
@@ -28,8 +35,5 @@
     position: absolute;
     bottom: 20px;
     right: 20px;
-    background-color: #ffffff;
-    border: 1px solid #d3d3d3;
     padding: 5px;
-    box-shadow: 2px 2px 2px 1px rgba(0, 0, 0, 0.3);
 }

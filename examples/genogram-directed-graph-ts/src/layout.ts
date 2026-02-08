@@ -101,6 +101,17 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
     // links rank by rank so that siblings appear in birth-date order and related
     // families stay close together.
 
+    // Identical twin groups: map each person ID to the minimum ID in their
+    // identical group, so the sort comparator keeps identical siblings adjacent.
+    const identicalGroupOf = new Map<number, number>();
+    for (const person of persons) {
+        if (person.identical !== undefined) {
+            const groupId = Math.min(person.id, person.identical);
+            identicalGroupOf.set(person.id, groupId);
+            identicalGroupOf.set(person.identical, groupId);
+        }
+    }
+
     // Build layout-level adjacency (parent→children, child→parents).
     const layoutAdj = new Map<string, Set<string>>();
     const layoutIncoming = new Map<string, Set<string>>();
@@ -302,7 +313,8 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
     for (let rank = 0; rank <= maxRank; rank++) {
         const rankedLinks = linksBySourceRank.get(rank) || [];
 
-        // Sort by: 1) source node order, 2) child birth date, 3) child id.
+        // Sort by: 1) source node order, 2) child birth date,
+        // 3) identical group (keeps identical twins adjacent), 4) child id.
         rankedLinks.sort((a, b) => {
             const srcA = layoutId(String(a.parentId));
             const srcB = layoutId(String(b.parentId));
@@ -314,6 +326,10 @@ export function layoutGenogram({ graph, elements, persons, parentChildLinks, mat
             const childB = personById.get(b.childId)!;
             const birthCmp = (childA.dob || '').localeCompare(childB.dob || '');
             if (birthCmp !== 0) return birthCmp;
+
+            const groupA = identicalGroupOf.get(a.childId) ?? a.childId;
+            const groupB = identicalGroupOf.get(b.childId) ?? b.childId;
+            if (groupA !== groupB) return groupA - groupB;
 
             return a.childId - b.childId;
         });

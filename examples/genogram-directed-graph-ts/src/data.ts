@@ -1,4 +1,5 @@
-import genogramData from './data.json';
+// import genogramData from './data.json';
+import genogramData from './data-educational.json';
 
 export interface PersonNode {
     id: number;
