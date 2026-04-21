@@ -423,6 +423,7 @@ function Main() {
           id: end.id,
         };
       }}
+      validateConnection={{ allowMultiLinks: true }}
       snapLinks
       defaultLink={() => new shapes.standard.Link({ attrs: { line: { stroke: LIGHT } } })}
       // Highlighting configuration

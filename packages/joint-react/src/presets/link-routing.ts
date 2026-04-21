@@ -93,7 +93,10 @@ export function linkRoutingOrthogonal(options: LinkRoutingOrthogonalOptions = {}
     margin,
     markerSelector,
   } = options;
-  const router = rightAngleRouter(margin);
+  // Offsets push the connection point outward from the element — extend the
+  // router's margin by the largest offset so the orthogonal path has room to turn.
+  const effectiveMargin = (margin ?? 20) + Math.max(sourceOffset, targetOffset);
+  const router = rightAngleRouter(effectiveMargin);
 
   if (straightWhenDisconnected) {
     return {
