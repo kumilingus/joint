@@ -167,7 +167,7 @@ function Main() {
       renderElement={renderElement}
       magnetThreshold={'onleave'}
       linkPinning={false}
-      {...SMOOTH_LINKS}
+      linkRouting={SMOOTH_LINKS}
       highlighting={{
         connecting: {
           name: 'stroke',

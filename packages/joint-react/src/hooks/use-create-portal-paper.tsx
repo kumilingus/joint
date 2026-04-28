@@ -192,6 +192,7 @@ export function useCreatePortalPaper(
     useHTMLOverlay,
     transform,
     portalSelector,
+    linkRouting,
     options: escapeHatchOptions,
     // These are React host props and must not be forwarded to dia.Paper options.
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -307,6 +308,7 @@ export function useCreatePortalPaper(
         validateUnembedding: validateUnembeddingCallback,
         cellVisibility: cellVisibilityCallback,
         interactive: interactiveValue,
+        ...linkRouting,
         ...escapeHatchOptions,
       },
       renderElement,

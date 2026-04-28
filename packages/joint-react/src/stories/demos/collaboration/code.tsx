@@ -944,7 +944,7 @@ function GraphWithRedux() {
             snapLinks={{ radius: 30 }}
             magnetThreshold="onleave"
             clickThreshold={10}
-            {...ORTHOGONAL_LINKS}
+            linkRouting={ORTHOGONAL_LINKS}
             defaultLink={{ style: { color: theme.link, width: 1.5, targetMarker: 'none' } }}
             validateConnection={({ target }) => target.port === 'in'}
             renderElement={RenderAgentNode}
