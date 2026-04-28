@@ -426,7 +426,7 @@ function Main() {
         height={500}
         className={PAPER_CLASSNAME}
         renderElement={RenderShapeElement}
-        scale={3}
+        transform={`scale(3)`}
         {...STRAIGHT_LINKS}
       />
       <PowerControl />
