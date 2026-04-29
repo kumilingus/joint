@@ -363,6 +363,7 @@ export function useCreatePortalPaper(
       cellVisibility: cellVisibilityCallback,
       interactive: interactiveValue,
       ...paperOptions,
+      ...linkRouting,
       ...escapeHatchOptions,
     });
 
@@ -386,6 +387,7 @@ export function useCreatePortalPaper(
     cellVisibilityCallback,
     interactiveValue,
     escapeHatchOptions,
+    linkRouting,
     paper,
     paperOptions,
     paperStore,
