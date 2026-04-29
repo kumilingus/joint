@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { dia } from '@joint/core';
 import { useGraphStore } from './use-graph-store';
 import {
@@ -73,6 +73,29 @@ export interface UseGraphResult<
    * our default `LinkModel`.
    */
   readonly isLink: (input: CellRecord<ElementData, LinkData>) => boolean;
+  /**
+   * Serialize the graph to a plain JSON object.
+   *
+   * By default, attributes that match a cell's `defaults` are omitted
+   * (and resulting top-level empty `{}` placeholders are stripped). Pass
+   * `{ includeDefaults: true }` to keep every attribute on every cell.
+   */
+  readonly exportToJSON: (options?: ExportToJSONOptions) => ReturnType<dia.Graph['toJSON']>;
+  /**
+   * Replace the graph contents from a previously exported JSON object
+   * (e.g. produced by {@link exportToJSON}). Triggers JointJS's `reset`
+   * event so all React subscriptions resync automatically.
+   */
+  readonly importFromJSON: (json: Parameters<dia.Graph['fromJSON']>[0]) => void;
+}
+
+/** Options accepted by {@link UseGraphResult.exportToJSON}. */
+export interface ExportToJSONOptions {
+  /**
+   * When `true`, attributes that match a cell's `defaults` are kept in the
+   * output. Defaults to `false` — defaults are omitted.
+   */
+  readonly includeDefaults?: boolean;
 }
 
 /**
@@ -101,6 +124,25 @@ export function useGraph<
   const resetCells = useResetCells<ElementData, LinkData>();
   const updateCells = useUpdateCells<ElementData, LinkData>();
 
+  const exportToJSON = useCallback<UseGraphResult<ElementData, LinkData>['exportToJSON']>(
+    (options) => {
+      if (options?.includeDefaults) {
+        return graph.toJSON();
+      }
+      return graph.toJSON({
+        cellAttributes: { ignoreDefaults: true, ignoreEmptyAttributes: true }
+      });
+    },
+    [graph]
+  );
+
+  const importFromJSON = useCallback<UseGraphResult<ElementData, LinkData>['importFromJSON']>(
+    (json) => {
+      graph.fromJSON(json);
+    },
+    [graph]
+  );
+
   return useMemo(
     () => ({
       graph,
@@ -113,7 +155,21 @@ export function useGraph<
       updateCells,
       isElement: store.isElement,
       isLink: store.isLink,
+      exportToJSON,
+      importFromJSON,
     }),
-    [graph, store, addCell, addCells, setCell, removeCell, removeCells, resetCells, updateCells]
+    [
+      graph,
+      store,
+      addCell,
+      addCells,
+      setCell,
+      removeCell,
+      removeCells,
+      resetCells,
+      updateCells,
+      exportToJSON,
+      importFromJSON,
+    ]
   );
 }

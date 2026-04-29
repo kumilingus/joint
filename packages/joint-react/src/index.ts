@@ -32,7 +32,7 @@ export { useElement } from './hooks/use-element';
 export { useLink } from './hooks/use-link';
 export { useLinkLayout } from './hooks/use-link-layout';
 export { useGraph } from './hooks/use-graph';
-export type { UseGraphResult } from './hooks/use-graph';
+export type { UseGraphResult, ExportToJSONOptions } from './hooks/use-graph';
 export { useGraphStore } from './hooks/use-graph-store';
 export { usePaper, usePaperStore } from './hooks/use-paper';
 
