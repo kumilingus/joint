@@ -3,16 +3,6 @@ import { HighlighterView } from '../dia/HighlighterView.mjs';
 
 const MASK_CLIP = 20;
 
-function forEachDescendant(vel, fn) {
-    const descendants = vel.children();
-    while (descendants.length > 0) {
-        const descendant = descendants.shift();
-        if (fn(descendant)) {
-            descendants.push(...descendant.children());
-        }
-    }
-}
-
 export const mask = HighlighterView.extend({
 
     tagName: 'rect',
@@ -37,83 +27,8 @@ export const mask = HighlighterView.extend({
     INVISIBLE: 'black',
 
     MASK_ROOT_ATTRIBUTE_BLACKLIST: [
-        'marker-start',
-        'marker-end',
-        'marker-mid',
-        'transform',
-        'stroke-dasharray',
-        'class',
+        'transform'
     ],
-
-    MASK_CHILD_ATTRIBUTE_BLACKLIST: [
-        'stroke',
-        'fill',
-        'stroke-width',
-        'stroke-opacity',
-        'stroke-dasharray',
-        'fill-opacity',
-        'marker-start',
-        'marker-end',
-        'marker-mid',
-        'class',
-    ],
-
-    // TODO: change the list to a function callback
-    MASK_REPLACE_TAGS: [
-        'FOREIGNOBJECT',
-        'IMAGE',
-        'USE',
-        'TEXT',
-        'TSPAN',
-        'TEXTPATH'
-    ],
-
-    // TODO: change the list to a function callback
-    MASK_REMOVE_TAGS: [
-        'TEXT',
-        'TSPAN',
-        'TEXTPATH'
-    ],
-
-    transformMaskChild(cellView, childEl) {
-        const {
-            MASK_CHILD_ATTRIBUTE_BLACKLIST,
-            MASK_REPLACE_TAGS,
-            MASK_REMOVE_TAGS
-        } = this;
-        const childTagName = childEl.tagName();
-        // Do not include the element in the mask's image
-        if (!V.isSVGGraphicsElement(childEl) || MASK_REMOVE_TAGS.includes(childTagName)) {
-            childEl.remove();
-            return false;
-        }
-        // Replace the element with a rectangle
-        if (MASK_REPLACE_TAGS.includes(childTagName)) {
-            // Note: clone() method does not change the children ids
-            const originalChild = cellView.vel.findOne(`#${childEl.id}`);
-            if (originalChild) {
-                const { node: originalNode } = originalChild;
-                let childBBox = cellView.getNodeBoundingRect(originalNode);
-                if (cellView.model.isElement()) {
-                    childBBox = V.transformRect(childBBox, cellView.getNodeMatrix(originalNode));
-                }
-                const replacement = V('rect', childBBox.toJSON());
-                const { x: ox, y: oy } = childBBox.center();
-                const { angle, cx = ox, cy = oy } = originalChild.rotate();
-                if (angle) replacement.rotate(angle, cx, cy);
-                // Note: it's not important to keep the same sibling index since all subnodes are filled
-                childEl.parent().append(replacement);
-            }
-            childEl.remove();
-            return false;
-        }
-        // Keep the element, but clean it from certain attributes
-        MASK_CHILD_ATTRIBUTE_BLACKLIST.forEach(attrName => {
-            if (attrName === 'fill' && childEl.attr('fill') === 'none') return;
-            childEl.removeAttr(attrName);
-        });
-        return true;
-    },
 
     transformMaskRoot(_cellView, rootEl) {
         const { MASK_ROOT_ATTRIBUTE_BLACKLIST } = this;
@@ -123,21 +38,12 @@ export const mask = HighlighterView.extend({
     },
 
     getMaskShape(cellView, vel) {
-        const { options, MASK_REPLACE_TAGS } = this;
-        const { deep } = options;
-        if (!V.isSVGGraphicsElement(vel)) return null;
-        const tagName = vel.tagName();
-        let maskRoot;
-        if (tagName === 'G') {
-            if (!deep) return null;
-            maskRoot = vel.clone();
-            forEachDescendant(maskRoot, maskChild => this.transformMaskChild(cellView, maskChild));
-        } else {
-            if (MASK_REPLACE_TAGS.includes(tagName)) return null;
-            maskRoot = vel.clone();
-        }
-        this.transformMaskRoot(cellView, maskRoot);
-        return maskRoot;
+        const { deep } = this.options;
+        if (vel.tagName() === 'G' && !deep) return null;
+        const alphaEl = cellView.toAlpha(vel.node);
+        if (!alphaEl) return null;
+        this.transformMaskRoot(cellView, alphaEl);
+        return alphaEl;
     },
 
     getMaskId() {

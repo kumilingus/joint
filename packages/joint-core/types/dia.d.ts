@@ -1134,6 +1134,10 @@ export class Link<A extends ObjectHash = Link.Attributes, S extends mvc.ModelSet
 
 export namespace CellView {
 
+    interface AlphaOptions {
+        ignore?: string | ((node: SVGElement, cellView: CellView) => boolean);
+    }
+
     enum Highlighting {
         DEFAULT = 'default',
         EMBEDDING = 'embedding',
@@ -1227,6 +1231,8 @@ export abstract class CellViewGeneric<T extends Cell> extends mvc.View<T, SVGEle
 
     getNodeUnrotatedBBox(node: SVGElement): g.Rect;
 
+    toAlpha(node?: SVGElement, opt?: CellView.AlphaOptions): Vectorizer | null;
+
     isNodeConnection(node: SVGElement): boolean;
 
     getEventTarget(evt: Event, opt?: { fromPoint?: boolean }): DOMElement;
@@ -1252,6 +1258,8 @@ export abstract class CellViewGeneric<T extends Cell> extends mvc.View<T, SVGEle
     cleanNodesCache(): void;
 
     cleanNodeCache(node: SVGElement): void
+
+    protected getAlphaRect(node: SVGElement): Vectorizer;
 
     protected isEnclosedIn(area: g.Rect): boolean;
 
