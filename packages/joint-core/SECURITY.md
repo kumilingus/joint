@@ -15,7 +15,7 @@ If the vulnerability is deemed invalid, no further action is required.
 
 JointJS renders the cell attributes (e.g. `markup`, `attrs`, `ports` and `labels`) as they are. Graph JSON or cell attributes from an untrusted source (e.g. a file import, another user in a collaborative session, a URL parameter) can run scripts in the page.
 
-Sanitize such data with [`@joint/sanitize`](https://www.npmjs.com/package/@joint/sanitize) before it enters the graph:
+Sanitize such data before it enters the graph. The sanitizers are part of `@joint/core` since 4.4 (`util.sanitizeGraphJSON()`, `util.sanitizeCellJSON()` and `util.sanitizeCellAttributes()`). For earlier versions, use the [`@joint/sanitize`](https://www.npmjs.com/package/@joint/sanitize) package, which provides the same functions.
 
 - `graph.fromJSON()` - `sanitizeGraphJSON()`
 - `graph.addCell()`, `graph.addCells()`, `graph.resetCells()`, `new Shape(attributes)` - `sanitizeCellJSON()`

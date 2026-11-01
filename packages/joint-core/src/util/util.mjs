@@ -818,41 +818,6 @@ export const breakText = function(text, size, styles = {}, opt = {}) {
     return lines.join(eol);
 };
 
-const UNSAFE_HTML_ELEMENTS = 'script, iframe, frame, frameset, object, embed, base, meta, link, noscript, animate, set';
-
-// Sanitize HTML
-// Based on https://gist.github.com/ufologist/5a0da51b2b9ef1b861c30254172ac3c9
-// Parses a string into an array of DOM nodes.
-// Then outputs it back as a string.
-export const sanitizeHTML = function(html) {
-
-    // Ignores tags that are invalid inside a <div> tag (e.g. <body>, <head>)
-    const [outputEl] = $.parseHTML('<div>' + html + '</div>');
-
-    // Remove elements which can run scripts, load documents or change the document's base URL.
-    Array.from(outputEl.querySelectorAll(UNSAFE_HTML_ELEMENTS)).forEach(function(node) {
-        node.remove();
-    });
-
-    Array.from(outputEl.getElementsByTagName('*')).forEach(function(node) { // for all nodes
-        const names = node.getAttributeNames();
-        names.forEach(function(name) {
-            // Browsers ignore whitespace and control characters in URLs and the scheme is case-insensitive
-            // (e.g. `href=" JaVa&#9;Script:alert(1)"`).
-            const attrName = name.toLowerCase();
-            // eslint-disable-next-line no-control-regex
-            const value = node.getAttribute(name).replace(/[\u0000-\u0020\u007F]/g, '').toLowerCase();
-            // Remove attribute names that start with "on" (e.g. onload, onerror...).
-            // Remove attribute values that start with "javascript:" pseudo protocol (e.g. `href="javascript:alert(1)"`).
-            if (attrName.startsWith('on') || attrName === 'srcdoc' || value.startsWith('javascript:') || value.startsWith('data:') || value.startsWith('vbscript:')) {
-                node.removeAttribute(name);
-            }
-        });
-    });
-
-    return outputEl.innerHTML;
-};
-
 // Download `blob` as file with `fileName`.
 // Does not work in IE9.
 export const downloadBlob = function(blob, fileName) {
