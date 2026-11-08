@@ -54,7 +54,7 @@ export namespace Vectorizer {
         safe?: boolean;
     }
 
-    // modifiable Matrix. SVGMatrix doesn't allow set on properties or a constructor.
+    /** Plain-object 2D affine matrix with the same components as `SVGMatrix`. */
     interface Matrix {
         a: number;
         b: number;

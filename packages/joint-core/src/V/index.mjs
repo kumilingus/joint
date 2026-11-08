@@ -1759,30 +1759,21 @@ const V = (function() {
 
     V.transformRect = function(r, matrix) {
 
-        var p = internalSVGDocument.createSVGPoint();
-
-        p.x = r.x;
-        p.y = r.y;
-        var corner1 = p.matrixTransform(matrix);
-
-        p.x = r.x + r.width;
-        p.y = r.y;
-        var corner2 = p.matrixTransform(matrix);
-
-        p.x = r.x + r.width;
-        p.y = r.y + r.height;
-        var corner3 = p.matrixTransform(matrix);
-
-        p.x = r.x;
-        p.y = r.y + r.height;
-        var corner4 = p.matrixTransform(matrix);
-
-        var minX = min(corner1.x, corner2.x, corner3.x, corner4.x);
-        var maxX = max(corner1.x, corner2.x, corner3.x, corner4.x);
-        var minY = min(corner1.y, corner2.y, corner3.y, corner4.y);
-        var maxY = max(corner1.y, corner2.y, corner3.y, corner4.y);
-
-        return new g.Rect(minX, minY, maxX - minX, maxY - minY);
+        const { a, b, c, d, e, f } = matrix;
+        const xs = [];
+        const ys = [];
+        for (const [px, py] of [
+            [r.x, r.y],
+            [r.x + r.width, r.y],
+            [r.x, r.y + r.height],
+            [r.x + r.width, r.y + r.height]
+        ]) {
+            xs.push(a * px + c * py + e);
+            ys.push(b * px + d * py + f);
+        }
+        const left = min(...xs);
+        const top = min(...ys);
+        return new g.Rect(left, top, max(...xs) - left, max(...ys) - top);
     };
 
     V.transformPoint = function(p, matrix) {

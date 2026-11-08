@@ -585,22 +585,16 @@ export const elementPortPrototype = {
     },
 
     /**
-     * @param {string|Port|number} before
-     * @param {object} port
-     * @param {object} [opt]
-     * @returns {joint.dia.Element}
+     * Inserts `port` in front of the port given by `before` (port, port id or index).
+     * @returns {dia.Element}
      */
     insertPort: function(before, port, opt) {
-        const index = (typeof before === 'number') ? before : this.getPortIndex(before);
-
         if (!util.isObject(port) || Array.isArray(port)) {
             throw new Error('dia.Element: insertPort requires an object.');
         }
-
-        const ports = util.assign([], this.prop('ports/items'));
-        ports.splice(index, 0, port);
-        this.prop('ports/items', ports, opt);
-
+        const items = this.prop('ports/items') || [];
+        const at = (typeof before === 'number') ? before : this.getPortIndex(before);
+        this.prop('ports/items', [...items.slice(0, at), port, ...items.slice(at)], opt);
         return this;
     },
 
@@ -704,24 +698,20 @@ export const elementPortPrototype = {
     },
 
     removePorts: function(portsForRemoval, opt) {
-        let options, newPorts;
+        let ports;
+        let options;
         if (Array.isArray(portsForRemoval)) {
-            options = opt || {};
-            if (portsForRemoval.length === 0) return this.this;
-            const currentPorts = util.assign([], this.prop(['ports', 'items']));
-            newPorts = currentPorts.filter(function(cp) {
-                return !portsForRemoval.some(function(rp) {
-                    const rpId = util.isObject(rp) ? rp.id : rp;
-                    return cp.id === rpId;
-                });
-            });
+            if (portsForRemoval.length === 0) return this;
+            const removedIds = new Set(portsForRemoval.map(port => util.isObject(port) ? port.id : port));
+            ports = (this.prop(['ports', 'items']) || []).filter(port => !removedIds.has(port.id));
+            options = opt;
         } else {
-            options = portsForRemoval || {};
-            newPorts = [];
+            // `removePorts(opt)` removes all ports
+            ports = [];
+            options = portsForRemoval;
         }
         this.startBatch('port-remove');
-        options.rewrite = true;
-        this.prop(['ports', 'items'], newPorts, options);
+        this.prop(['ports', 'items'], ports, { ...options, rewrite: true });
         this.stopBatch('port-remove');
         return this;
     },

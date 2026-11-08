@@ -3801,14 +3801,10 @@ export const Paper = View.extend({
         const localPoint = this.snapToGrid(originalEvent.clientX, originalEvent.clientY);
         const { deltaX, deltaY } = normalizeWheel(originalEvent);
 
-        const pinchHandlers = this._events['paper:pinch'];
-
-        // Touchpad devices will send a fake CTRL press when a pinch is performed
-        //
-        // We also check if there are any subscribers to paper:pinch event. If there are none,
-        // just skip the entire block of code (we don't want to blindly call
-        // .preventDefault() if we really don't have to).
-        if (evt.ctrlKey && pinchHandlers && pinchHandlers.length > 0) {
+        // A touchpad pinch arrives as a wheel event with `ctrlKey` set.
+        // Take it over (and block browser zoom) only if `paper:pinch` has listeners.
+        const isPinch = evt.ctrlKey && this._events['paper:pinch']?.length > 0;
+        if (isPinch) {
             // This is a pinch gesture, it's safe to assume that we must call .preventDefault()
             originalEvent.preventDefault();
             this._mw_evt_buffer.event = evt;

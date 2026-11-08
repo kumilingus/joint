@@ -473,6 +473,10 @@ function reconstructRoute(parents, points, tailPoint, from, to, grid, opt) {
     return route;
 }
 
+function arePointsEqual(points1, points2) {
+    return points1.length === points2.length && points1.every((point, index) => point.equals(points2[index]));
+}
+
 // heuristic method to determine the distance between two points
 function estimateCost(from, endPoints) {
 
@@ -651,6 +655,8 @@ function findRoute(from, to, isPointObstacle, opt) {
             return res;
         }, []);
 
+        const startsAtEnd = arePointsEqual(startPoints, endPoints);
+
         // main route finding loop
         var loopsRemaining = opt.maximumLoops;
         while (!openSet.isEmpty() && loopsRemaining > 0) {
@@ -671,16 +677,7 @@ function findRoute(from, to, isPointObstacle, opt) {
             else previousDirectionAngle = null; // beginning of path, source anchor or `from` point
 
             // check if we reached any endpoint
-            var samePoints = startPoints.length === endPoints.length;
-            if (samePoints) {
-                for (var j = 0; j < startPoints.length; j++) {
-                    if (!startPoints[j].equals(endPoints[j])) {
-                        samePoints = false;
-                        break;
-                    }
-                }
-            }
-            var skipEndCheck = (isRouteBeginning && samePoints);
+            const skipEndCheck = isRouteBeginning && startsAtEnd;
             if (!skipEndCheck && (endPointsKeys.indexOf(currentKey) >= 0)) {
                 opt.previousDirectionAngle = previousDirectionAngle;
                 return reconstructRoute(parents, points, currentPoint, start, end, grid, opt);
